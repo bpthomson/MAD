@@ -4,24 +4,48 @@
     <meta charset="UTF-8">
     <title>History</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
 </head>
-<body class="bg-light">
+<body>
+    <canvas id="canvas-background"></canvas>
+
     <div class="container py-5">
-        <h2 class="mb-4">Diary History</h2>
-        <a href="/" class="btn btn-primary mb-3">Back to Write</a>
+        <div class="d-flex justify-content-between align-items-center mb-5">
+            <h2 class="mb-0">History</h2>
+            <a href="/" class="btn btn-primary btn-sm">New</a>
+        </div>
         
-        <div class="list-group">
+        <div class="timeline">
+            {% if not records %}
+            <div class="py-5 text-muted">
+                <p>No entries yet.</p>
+            </div>
+            {% endif %}
+
             {% for row in records %}
-            <div class="list-group-item list-group-item-action flex-column align-items-start mb-2 shadow-sm border rounded">
-                <div class="d-flex w-100 justify-content-between">
-                    <h5 class="mb-1">{{ row.Title }}</h5>
-                    <small>{{ row.Timestamp }}</small>
+            <div class="position-relative mb-5">
+                <div class="timeline-dot"></div>
+                <div class="text-muted small mb-2 ps-2" style="font-family: var(--font-hand); font-size: 1.1rem;">
+                    {{ row.Timestamp }}
                 </div>
-                <p class="mb-1 text-truncate" style="max-width: 80%;">{{ row.Original }}</p>
-                <small class="text-success">Review: {{ row.Comment }}</small>
+                <div class="card">
+                    <div class="card-body p-4">
+                        <h5 class="fw-bold mb-2">{{ row.Title }}</h5>
+                        <p class="text-muted mb-3 text-truncate" style="font-family: var(--font-reading);">
+                            {{ row.Original }}
+                        </p>
+                        <div class="text-end">
+                            <small class="text-muted fst-italic" style="color: var(--accent-color) !important;">
+                                "{{ row.Comment }}"
+                            </small>
+                        </div>
+                    </div>
+                </div>
             </div>
             {% endfor %}
         </div>
     </div>
+    
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
