@@ -2,9 +2,8 @@
 
 document.addEventListener('DOMContentLoaded', function() {
     initOrganicFlow(); 
-    initCalendar(); // 啟動月曆
+    initCalendar();
 
-    // 輸入框自動長高
     const textarea = document.querySelector('textarea[name="content"]');
     if (textarea) {
         textarea.style.height = 'auto';
@@ -15,7 +14,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // 設定 Date Input 預設值為今天 (如果尚未設定)
     const dateInput = document.getElementById('dateInput');
     if (dateInput && !dateInput.value) {
         dateInput.valueAsDate = new Date();
@@ -46,7 +44,7 @@ function copyToClipboard(btn) {
 // --- Calendar Logic ---
 let currentMonth = new Date().getMonth();
 let currentYear = new Date().getFullYear();
-let existingDates = []; // 儲存已寫日記的日期
+let calendarData = {}; // 儲存 { "YYYY-MM-DD": "#color" }
 
 async function initCalendar() {
     const calendarContainer = document.getElementById('calendar-container');
@@ -54,15 +52,13 @@ async function initCalendar() {
     
     if (!calendarContainer || !dateInput) return;
 
-    // 1. 從後端獲取有日記的日期
     try {
         const response = await fetch('/api/dates');
-        existingDates = await response.json();
+        calendarData = await response.json();
     } catch (e) {
         console.error("Failed to fetch dates", e);
     }
 
-    // 2. 監聽日期輸入框改變 -> 更新月曆選取
     dateInput.addEventListener('change', (e) => {
         const date = new Date(e.target.value);
         if (!isNaN(date)) {
@@ -82,15 +78,13 @@ function renderCalendar(year, month) {
     
     if (!calendarEl || !monthYearEl) return;
 
-    // 更新標題
     const monthNames = ["January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December"
     ];
     monthYearEl.innerText = `${monthNames[month]} ${year}`;
 
-    calendarEl.innerHTML = ''; // 清空
+    calendarEl.innerHTML = '';
 
-    // 添加星期標頭
     const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
     days.forEach(day => {
         const el = document.createElement('div');
@@ -99,47 +93,45 @@ function renderCalendar(year, month) {
         calendarEl.appendChild(el);
     });
 
-    // 計算日期
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-    // 填充空白
     for (let i = 0; i < firstDay; i++) {
         const el = document.createElement('div');
         el.className = 'calendar-day empty';
         calendarEl.appendChild(el);
     }
 
-    // 填充日期
     for (let day = 1; day <= daysInMonth; day++) {
         const el = document.createElement('div');
         el.className = 'calendar-day';
         el.innerText = day;
 
-        // 格式化為 YYYY-MM-DD
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         
-        // 檢查是否有日記
-        if (existingDates.includes(dateStr)) {
+        // 檢查是否有日記資料
+        if (calendarData[dateStr]) {
             el.classList.add('has-entry');
+            // 動態設定小圓點顏色 (使用 CSS 變數)
+            el.style.setProperty('--mood-color', calendarData[dateStr]);
+        } else {
+            // 預設顏色
+            el.style.setProperty('--mood-color', 'var(--text-main)');
         }
 
-        // 檢查是否為當前選取日期
         if (dateInput.value === dateStr) {
             el.classList.add('selected');
         }
 
-        // 點擊事件
         el.addEventListener('click', () => {
             dateInput.value = dateStr;
-            renderCalendar(year, month); // 重繪以更新 selected 樣式
+            renderCalendar(year, month);
         });
 
         calendarEl.appendChild(el);
     }
 }
 
-// 切換月份
 window.changeMonth = function(offset) {
     currentMonth += offset;
     if (currentMonth > 11) {

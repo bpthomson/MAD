@@ -210,13 +210,14 @@ textarea::placeholder {
 .calendar-day.has-entry::after {
     content: '';
     position: absolute;
-    bottom: 4px;
+    bottom: 5px;
     left: 50%;
     transform: translateX(-50%);
-    width: 4px;
-    height: 4px;
-    background-color: var(--text-main);
+    width: 6px; /* 稍微大一點 */
+    height: 6px;
+    background-color: var(--mood-color, #4a4036); /* 使用情緒色，預設為深咖啡 */
     border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1); /* 讓小圓點更立體 */
 }
 
 .calendar-day.empty {

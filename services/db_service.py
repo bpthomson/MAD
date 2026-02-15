@@ -13,7 +13,6 @@ class DBService:
         ]
 
     def _get_connection(self):
-        """取得 Google Sheets 連線"""
         if self.gc is None:
             try:
                 creds = Credentials.from_service_account_file(
@@ -37,12 +36,9 @@ class DBService:
             return self.gc.open(Config.SPREADSHEET_NAME).sheet1
 
     def save_entry(self, title, content, ai_result, custom_date=None):
-        """儲存日記 (支援自訂日期)"""
         try:
             sheet = self._get_connection()
             
-            # 如果有提供 custom_date (YYYY-MM-DD)，則使用該日期加上當前時間
-            # 如果沒有，則使用當前完整時間
             if custom_date:
                 current_time = datetime.datetime.now().strftime("%H:%M:%S")
                 timestamp = f"{custom_date} {current_time}"
@@ -51,6 +47,7 @@ class DBService:
             
             corrections_str = json.dumps(ai_result.get('corrections', []), ensure_ascii=False)
             vocab_str = json.dumps(ai_result.get('vocabulary', []), ensure_ascii=False)
+            mood_str = json.dumps(ai_result.get('mood', {'label': 'Neutral', 'color': '#6c757d'}), ensure_ascii=False)
             
             row = [
                 timestamp,
@@ -59,7 +56,8 @@ class DBService:
                 ai_result.get('polished_version', ''),
                 corrections_str,
                 vocab_str,
-                ai_result.get('comment', '')
+                ai_result.get('comment', ''),
+                mood_str  # 第 8 欄：情緒資料
             ]
             sheet.append_row(row)
             return True
@@ -76,26 +74,42 @@ class DBService:
             print(f"DB Error (Fetch): {e}")
             return []
 
-    def get_existing_dates(self):
-        """取得所有已經寫過日記的日期 (YYYY-MM-DD)"""
+    def get_calendar_data(self):
+        """取得月曆資料：日期對應顏色 { 'YYYY-MM-DD': '#color' }"""
         try:
             sheet = self._get_connection()
-            # 只抓取第一欄 (Timestamp) 以提升效能
-            timestamps = sheet.col_values(1)
-            dates = set()
+            # 讀取所有資料 (建議未來改為 Cache 機制，目前先直接讀)
+            rows = sheet.get_all_values()
             
-            # 跳過標題列 (假設第一列是標題)
-            for ts in timestamps[1:]:
+            calendar_data = {}
+            
+            # 跳過標題列，從第 2 行開始
+            for row in rows[1:]:
+                if len(row) < 1: continue
+                
                 try:
-                    # 假設格式為 YYYY-MM-DD HH:MM:SS
+                    # 解析日期
+                    ts = row[0] 
                     date_part = ts.split(' ')[0]
-                    dates.add(date_part)
-                except:
+                    
+                    # 解析情緒顏色 (第 8 欄，索引 7)
+                    color = '#6c757d' # 預設灰色
+                    if len(row) >= 8 and row[7]:
+                        try:
+                            mood_data = json.loads(row[7])
+                            color = mood_data.get('color', '#6c757d')
+                        except:
+                            pass
+                    
+                    # 存入字典 (如果同一天有多篇，後面會覆蓋前面，這符合顯示最新心情的邏輯)
+                    calendar_data[date_part] = color
+                    
+                except Exception as e:
                     continue
             
-            return list(dates)
+            return calendar_data
         except Exception as e:
-            print(f"DB Error (Get Dates): {e}")
-            return []
+            print(f"DB Error (Get Calendar Data): {e}")
+            return {}
 
 db_service = DBService()
