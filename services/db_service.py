@@ -11,6 +11,10 @@ class DBService:
             'https://www.googleapis.com/auth/spreadsheets',
             'https://www.googleapis.com/auth/drive'
         ]
+        # 快取機制：將資料暫存在伺服器記憶體中
+        self._records_cache = None
+        self._last_fetch_time = None
+        self._cache_ttl = datetime.timedelta(minutes=15) # 每 15 分鐘自動刷新一次
 
     def _get_connection(self):
         if self.gc is None:
@@ -35,6 +39,25 @@ class DBService:
             self.gc = gspread.authorize(creds)
             return self.gc.open(Config.SPREADSHEET_NAME).sheet1
 
+    def _fetch_all_records(self, force=False):
+        """內部方法：取得所有資料 (優先讀快取)"""
+        now = datetime.datetime.now()
+        
+        # 如果快取有效，直接回傳 (0秒延遲)
+        if not force and self._records_cache is not None:
+            if self._last_fetch_time and (now - self._last_fetch_time) < self._cache_ttl:
+                return self._records_cache
+
+        try:
+            sheet = self._get_connection()
+            self._records_cache = sheet.get_all_records()
+            self._last_fetch_time = now
+            print(f"DEBUG: Cache refreshed. {len(self._records_cache)} records loaded.")
+            return self._records_cache
+        except Exception as e:
+            print(f"DB Error (Fetch All): {e}")
+            return []
+
     def save_entry(self, title, content, ai_result, custom_date=None):
         try:
             sheet = self._get_connection()
@@ -57,59 +80,74 @@ class DBService:
                 corrections_str,
                 vocab_str,
                 ai_result.get('comment', ''),
-                mood_str  # 第 8 欄：情緒資料
+                mood_str
             ]
             sheet.append_row(row)
+            
+            # 重要：寫入新日記後，讓快取失效，確保下次讀到最新的
+            self._records_cache = None 
             return True
         except Exception as e:
             print(f"DB Error (Save): {e}")
             return False
 
     def get_recent_diaries(self, limit=20):
-        try:
-            sheet = self._get_connection()
-            records = sheet.get_all_records()
-            return list(reversed(records))[:limit]
-        except Exception as e:
-            print(f"DB Error (Fetch): {e}")
-            return []
+        records = self._fetch_all_records()
+        return list(reversed(records))[:limit]
+
+    def search_diaries(self, query):
+        """全文搜尋功能"""
+        if not query:
+            return self.get_recent_diaries()
+        
+        records = self._fetch_all_records()
+        query = query.lower().strip()
+        results = []
+        
+        # 倒序搜尋
+        for row in reversed(records):
+            # 將標題、內容、評語串在一起搜尋
+            text_corpus = (
+                str(row.get('Title', '')) + 
+                str(row.get('Original', '')) + 
+                str(row.get('Comment', ''))
+            ).lower()
+            
+            if query in text_corpus:
+                results.append(row)
+        
+        return results
 
     def get_calendar_data(self):
-        """取得月曆資料：日期對應顏色 { 'YYYY-MM-DD': '#color' }"""
-        try:
-            sheet = self._get_connection()
-            # 讀取所有資料 (建議未來改為 Cache 機制，目前先直接讀)
-            rows = sheet.get_all_values()
-            
-            calendar_data = {}
-            
-            # 跳過標題列，從第 2 行開始
-            for row in rows[1:]:
-                if len(row) < 1: continue
+        """從快取解析月曆顏色"""
+        records = self._fetch_all_records()
+        calendar_data = {}
+        
+        for row in records:
+            try:
+                # 處理 Timestamp 欄位 (假設是第一欄或 key='Timestamp')
+                # gspread get_all_records 使用 header 作為 key
+                # 請確保 Google Sheet 第一列包含 'Timestamp' 和 'Mood'
+                ts = str(row.get('Timestamp', '') or list(row.values())[0]) 
+                date_part = ts.split(' ')[0]
                 
-                try:
-                    # 解析日期
-                    ts = row[0] 
-                    date_part = ts.split(' ')[0]
-                    
-                    # 解析情緒顏色 (第 8 欄，索引 7)
-                    color = '#6c757d' # 預設灰色
-                    if len(row) >= 8 and row[7]:
-                        try:
-                            mood_data = json.loads(row[7])
+                # 解析情緒顏色
+                mood_raw = row.get('Mood', '') 
+                # 如果找不到 Mood key (例如舊資料)，使用預設色
+                
+                color = '#6c757d'
+                if mood_raw:
+                    try:
+                        if isinstance(mood_raw, str) and mood_raw.startswith('{'):
+                            mood_data = json.loads(mood_raw)
                             color = mood_data.get('color', '#6c757d')
-                        except:
-                            pass
-                    
-                    # 存入字典 (如果同一天有多篇，後面會覆蓋前面，這符合顯示最新心情的邏輯)
-                    calendar_data[date_part] = color
-                    
-                except Exception as e:
-                    continue
-            
-            return calendar_data
-        except Exception as e:
-            print(f"DB Error (Get Calendar Data): {e}")
-            return {}
+                    except:
+                        pass
+                
+                calendar_data[date_part] = color
+            except:
+                continue
+                
+        return calendar_data
 
 db_service = DBService()

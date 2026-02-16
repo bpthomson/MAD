@@ -1,22 +1,21 @@
 import os
 from dotenv import load_dotenv
 
-# 載入 .env 檔案
 load_dotenv()
 
 class Config:
-    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+    # 修改為讀取 GROQ_API_KEY
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY")
     SECRET_KEY = os.getenv("SECRET_KEY", "dev_fallback_secret")
     
     # Google Sheets
     CREDENTIALS_FILE = os.getenv("GOOGLE_SHEETS_CREDENTIALS_FILE", "credentials.json")
     SPREADSHEET_NAME = os.getenv("GOOGLE_SHEETS_NAME", "DiaryDB")
     
-    # AI Model
-    # 修正：直接使用具體的版本 ID，避免使用 'latest' 導致解析卡住
-    MODEL_NAME = 'gemini-2.5-flash'
+    # 更新為 Kimi 模型 (由 Groq 託管)
+    MODEL_NAME = 'moonshotai/kimi-k2-instruct-0905'
 
     @staticmethod
     def validate():
-        if not Config.GEMINI_API_KEY:
-            raise ValueError("缺少 GEMINI_API_KEY，請檢查 .env 檔案")
+        if not Config.GROQ_API_KEY:
+            raise ValueError("缺少 GROQ_API_KEY，請檢查 .env 檔案")

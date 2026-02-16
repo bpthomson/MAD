@@ -43,13 +43,8 @@
                     </div>
                     
                     <div class="text-center">
-                        <button type="submit" id="submitBtn" class="btn btn-primary">
-                            Polish Entry
-                        </button>
-                        
-                        <button class="btn btn-primary" id="loadingBtn" type="button" disabled style="display: none;">
-                            Writing...
-                        </button>
+                        <button type="submit" id="submitBtn" class="btn btn-primary">Polish Entry</button>
+                        <button class="btn btn-primary" id="loadingBtn" type="button" disabled style="display: none;">Writing...</button>
                     </div>
                 </form>
             </div>
@@ -58,19 +53,25 @@
                 <div id="calendar-container" class="calendar-widget">
                     <div class="calendar-header">
                         <button onclick="changeMonth(-1)">&lt;</button>
-                        <span id="calendar-month-year">May 2026</span>
+                        <span id="calendar-month-year">...</span>
                         <button onclick="changeMonth(1)">&gt;</button>
                     </div>
-                    <div id="calendar-grid" class="calendar-grid">
-                        </div>
-                    <div class="text-center mt-3 small text-muted">
-                        • indicates entry exists
-                    </div>
+                    <div id="calendar-grid" class="calendar-grid"></div>
                 </div>
             </div>
         </div>
     </div>
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
+    
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('SW Registered!', reg.scope))
+                    .catch(err => console.log('SW Failed', err));
+            });
+        }
+    </script>
 </body>
 </html>

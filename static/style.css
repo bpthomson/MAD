@@ -1,27 +1,27 @@
 /* diary/static/style.css */
-
-/* 引入 Patrick Hand (手寫感) 與 Merriweather (閱讀感) */
 @import url('https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
     --bg-color: #cdc5b8;
     --text-main: #2d3436;
     --text-muted: #636e72;
-    
     --card-bg: rgba(244, 241, 234, 0.45);
     --card-border: rgba(255, 255, 255, 0.4);
-    
     --accent-color: #8d6e63;
     --primary-btn: #4a4036;
     --primary-btn-hover: #2d2420;
-    
     --diff-del-bg: rgba(214, 162, 162, 0.4);
     --diff-del-text: #8a2a2a;
     --diff-add-bg: rgba(162, 214, 180, 0.4);
     --diff-add-text: #1b5e20;
     
+    --highlight-bg: rgba(255, 241, 118, 0.5); 
+    --highlight-active-bg: rgba(255, 235, 59, 0.8);
+
     --font-hand: 'Patrick Hand', cursive;
     --font-reading: 'Merriweather', serif;
+    --font-ui: 'Inter', sans-serif;
 }
 
 body {
@@ -31,20 +31,31 @@ body {
     line-height: 1.8;
     overflow-x: hidden;
     min-height: 100vh;
+    
+    /* 字體柔化設定 */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
 }
 
-#canvas-background {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    z-index: -1;
-}
+#canvas-background { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
 
-h1, h2, h3, h4, h5, h6, .nav-link, .btn {
+h1, h2, h3, h4, h5, h6, .nav-link, .btn, .calendar-header {
     font-family: var(--font-hand);
     letter-spacing: 1px;
 }
 
+/* --- [核心修改] 統一閱讀與寫作的排版參數 --- */
+/* 定義一個 mixin 的概念，應用在 result 區塊與 textarea */
+#marked-original-text, textarea.form-control, .native-polish-text {
+    line-height: 2.0 !important; /* [修改] 從 2.4 改為 2.0，緊湊但舒適 */
+    font-size: 1.05rem !important; /* [修改] 從 1.15rem 改為 1.05rem */
+    letter-spacing: 0.3px;       /* [修改] 微調字距 */
+    color: #3d3d3d;
+    font-weight: 400;
+}
+
+/* 玻璃擬態卡片 */
 .card {
     background: var(--card-bg);
     backdrop-filter: blur(8px);
@@ -60,33 +71,32 @@ h1, h2, h3, h4, h5, h6, .nav-link, .btn {
     border-bottom: 1px solid rgba(0,0,0,0.03);
     font-family: var(--font-hand);
     font-size: 1.2rem;
-    padding: 1rem 1.5rem;
+    padding: 0.8rem 1.2rem;
     color: var(--text-muted);
 }
 
-textarea.form-control {
+/* 輸入框樣式 */
+textarea.form-control, input.form-control, .custom-date-input {
     background-color: rgba(255, 255, 255, 0.4);
     border: none;
     border-radius: 8px;
-    padding: 1.5rem;
+    padding: 1.5rem; /* 增加內距，讓文字不要貼邊 */
     font-family: var(--font-reading);
-    font-size: 1.1rem;
     color: var(--text-main);
     box-shadow: inset 0 2px 5px rgba(0,0,0,0.01);
     transition: all 0.3s ease;
 }
 
-textarea.form-control:focus {
+textarea.form-control:focus, input.form-control:focus {
     background-color: rgba(255, 255, 255, 0.8);
     outline: none;
     box-shadow: 0 4px 15px rgba(0,0,0,0.05);
 }
 
-textarea::placeholder {
-    font-family: var(--font-hand);
-    font-size: 1.3rem;
-    color: #aab;
-    opacity: 0.7;
+textarea::placeholder, input::placeholder { 
+    font-family: var(--font-hand); 
+    font-size: 1.2rem; 
+    opacity: 0.6; 
 }
 
 .btn-primary {
@@ -98,7 +108,6 @@ textarea::placeholder {
     font-size: 1.3rem;
     transition: all 0.3s ease;
 }
-
 .btn-primary:hover {
     background-color: var(--primary-btn-hover);
     transform: translateY(-2px);
@@ -112,127 +121,51 @@ textarea::placeholder {
     padding: 6px 20px;
     background: transparent;
 }
+.btn-outline-secondary:hover { background-color: var(--text-main); color: #fff; }
 
-.btn-outline-secondary:hover {
-    background-color: var(--text-main);
-    color: #fff;
-}
-
-.diff-del { 
-    text-decoration: line-through; 
-    background-color: var(--diff-del-bg);
-    color: var(--diff-del-text);
-    padding: 0 4px;
-}
-.diff-add { 
-    background-color: var(--diff-add-bg);
-    color: var(--diff-add-text);
-    padding: 0 4px;
-}
-
-.timeline {
-    position: relative;
-    padding-left: 20px;
-}
-.timeline::before {
-    content: '';
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    width: 1px;
-    background: rgba(0,0,0,0.1);
-}
-.timeline-dot {
-    position: absolute;
-    left: -4px; top: 24px;
-    width: 9px; height: 9px;
-    border-radius: 50%;
-    background: var(--text-muted);
-    border: 2px solid var(--bg-color);
-}
-
-/* --- [New] Calendar Widget --- */
-.calendar-widget {
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 12px;
-    padding: 1.5rem;
-    font-family: var(--font-hand);
-    color: var(--text-main);
-}
-
-.calendar-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-    font-weight: bold;
-    font-size: 1.2rem;
-}
-
-.calendar-header button {
-    background: none;
-    border: none;
-    color: var(--text-muted);
+/* 螢光筆樣式 */
+mark.highlight {
+    background-color: var(--highlight-bg);
+    color: inherit;
+    padding: 2px 4px; /* [修改] 稍微縮小內距，配合緊湊排版 */
+    border-radius: 4px;
     cursor: pointer;
-    font-size: 1.2rem;
+    transition: all 0.2s ease;
+    border-bottom: 2px solid transparent;
 }
 
-.calendar-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    text-align: center;
-    gap: 5px;
+mark.highlight:hover {
+    background-color: rgba(255, 241, 118, 0.8);
+    border-bottom-color: #fbc02d;
 }
 
-.calendar-day-name {
-    font-size: 0.9rem;
-    color: var(--text-muted);
-    margin-bottom: 0.5rem;
+mark.highlight.active {
+    background-color: var(--highlight-active-bg);
+    box-shadow: 0 2px 8px rgba(251, 192, 45, 0.3);
+    transform: scale(1.02);
+    font-weight: 600;
+    display: inline-block;
 }
 
-.calendar-day {
-    position: relative;
-    padding: 8px 0;
-    cursor: pointer;
-    border-radius: 50%;
-    transition: background 0.2s;
-    font-size: 1rem;
-}
+.diff-del { text-decoration: line-through; background-color: var(--diff-del-bg); color: var(--diff-del-text); padding: 0 4px; word-break: break-word; }
+.diff-add { background-color: var(--diff-add-bg); color: var(--diff-add-text); padding: 0 4px; word-break: break-word; }
 
-.calendar-day:hover {
-    background: rgba(255, 255, 255, 0.5);
-}
+.timeline { position: relative; padding-left: 20px; }
+.timeline::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 1px; background: rgba(0,0,0,0.1); }
+.timeline-dot { position: absolute; left: -4px; top: 24px; width: 9px; height: 9px; border-radius: 50%; background: var(--text-muted); border: 2px solid var(--bg-color); }
 
-.calendar-day.selected {
-    background: var(--accent-color);
-    color: #fff;
-}
+.calendar-widget { background: rgba(255, 255, 255, 0.3); border-radius: 12px; padding: 1.5rem; font-family: var(--font-hand); color: var(--text-main); }
+.calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; font-weight: bold; font-size: 1.2rem; }
+.calendar-header button { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem; }
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; gap: 5px; }
+.calendar-day-name { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem; }
+.calendar-day { position: relative; padding: 8px 0; cursor: pointer; border-radius: 50%; transition: background 0.2s; font-size: 1rem; }
+.calendar-day:hover { background: rgba(255, 255, 255, 0.5); }
+.calendar-day.selected { background: var(--accent-color); color: #fff; }
+.calendar-day.has-entry::after { content: ''; position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 6px; height: 6px; background-color: var(--mood-color, #4a4036); border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.calendar-day.empty { pointer-events: none; }
+.custom-date-input { cursor: pointer; }
 
-.calendar-day.has-entry::after {
-    content: '';
-    position: absolute;
-    bottom: 5px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 6px; /* 稍微大一點 */
-    height: 6px;
-    background-color: var(--mood-color, #4a4036); /* 使用情緒色，預設為深咖啡 */
-    border-radius: 50%;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1); /* 讓小圓點更立體 */
-}
-
-.calendar-day.empty {
-    pointer-events: none;
-}
-
-/* Custom Date Input */
-.custom-date-input {
-    background: rgba(255, 255, 255, 0.4);
-    border: none;
-    border-radius: 8px;
-    padding: 0.5rem 1rem;
-    font-family: var(--font-hand);
-    color: var(--text-main);
-    font-size: 1.1rem;
-    cursor: pointer;
-    outline: none;
-}
+.search-box-container { width: 100%; }
+.search-input { border-top-right-radius: 0 !important; border-bottom-right-radius: 0 !important; }
+.search-box-container .btn { border-top-left-radius: 0; border-bottom-left-radius: 0; }

@@ -1,6 +1,6 @@
 Flask
 gspread
-oauth2client
-google-genai
+google-auth
+groq
 python-dotenv
 markdown

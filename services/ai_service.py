@@ -1,6 +1,5 @@
 import json
-from google import genai
-from google.genai import types
+from groq import Groq
 from config import Config
 
 # ================= System Prompt =================
@@ -9,24 +8,42 @@ You are a unique English teacher. The user will input a diary entry.
 Your goal is to maximize the user's writing experience.
 
 **Your Tasks:**
-1.  **Corrections:** List grammatical/vocabulary errors (Casual tone).
-2.  **Polished Version:** Rewrite like a native speaker.
+1.  **Corrections:** Identify grammatical errors, awkward phrasing, and unnatural word choices.
+    * **Standard:** Use **American English** (e.g., "Mom", "color", "center").
+    * Be detailed and educational.
+    * Fix the *collocation* to make it sound native.
+2.  **Polished Version:** Rewrite the diary entry in **natural, fluent American English**.
+    * **Style:** Use a **narrative, written diary style** (like a memoir or journal). 
+    * **Constraint:** Use **complete sentences**. Avoid sentence fragments, "script-like" formats (e.g., "Mission: ..."), or excessive internet slang.
+    * Keep the tone personal and authentic, but grounded and not overly dramatic.
 3.  **Comment:** A short, warm personal response.
-4.  **Vocabulary:** Teach 5 new words with Traditional Chinese meaning.
-5.  **Mood Analysis (New!):** Analyze the sentiment of the diary and assign a color.
+4.  **Vocabulary:** Teach exactly 5 advanced words related to the specific events.
+    * Must provide **Traditional Chinese (中文)** meaning.
+    * Must provide an example sentence.
+5.  **Mood Analysis:** Analyze the sentiment and assign a color.
+6.  **Marked HTML:** Return the user's text with `<mark class="highlight" data-index="N">...</mark>` tags.
+    * **CRITICAL RULE:** You must ONLY wrap text in `<mark>` if there is a corresponding entry in the `corrections` array.
+    * `data-index="N"` must match the index of the correction in the list (0, 1, 2...).
+    * **DO NOT** highlight Chinese characters (like place names or names) unless there is a specific grammatical reason to correct them.
 
-**Mood Color Palette Guide (Use these or similar muted/vintage shades):**
-* Joy/Excited: #e09f3e (Warm Yellow/Orange)
+7.  **Proper Noun Strategy (CRITICAL):**
+    * **Place Names:** MUST KEEP IN ORIGINAL CHINESE CHARACTERS** (e.g., "台北", "新竹").
+    * **Personal Names & Nicknames:** **MUST KEEP IN ORIGINAL CHINESE CHARACTERS** (e.g., "王禹均", "杰哥"). Do NOT translate to Pinyin or English.
+    * **Cultural Memes:** Keep in Chinese.
+
+**Mood Color Palette Guide:**
+* Joy/Excited: #e09f3e (Warm Yellow)
 * Calm/Peaceful: #588157 (Sage Green)
 * Sad/Melancholic: #457b9d (Muted Blue)
-* Anxious/Stressed: #9e2a2b (Deep Red/Burgundy)
+* Anxious/Stressed: #9e2a2b (Deep Red)
 * Neutral/Tired: #6c757d (Warm Grey)
 * Romantic/Loving: #d08c60 (Dusty Rose)
 
 **Output Format (STRICT JSON):**
 {
+  "marked_html": "User text with <mark class='highlight' data-index='0'>wrong part</mark>...",
   "corrections": [
-    { "original": "...", "correction": "...", "explanation": "..." }
+    { "original": "wrong part", "correction": "right part", "explanation": "Detailed reason." }
   ],
   "polished_version": "...",
   "comment": "...",
@@ -34,7 +51,7 @@ Your goal is to maximize the user's writing experience.
     { "word": "...", "meaning": "...", "example": "..." }
   ],
   "mood": {
-    "label": "One-word mood (e.g., Grateful)",
+    "label": "One-word mood",
     "color": "#hexcode"
   }
 }
@@ -42,28 +59,42 @@ Your goal is to maximize the user's writing experience.
 
 class AIService:
     def __init__(self):
-        self.client = genai.Client(api_key=Config.GEMINI_API_KEY)
+        self.client = Groq(api_key=Config.GROQ_API_KEY)
 
     def analyze_diary(self, content):
-        print(f"DEBUG: Using model {Config.MODEL_NAME}...")
+        print(f"DEBUG: Using model {Config.MODEL_NAME} via Groq...")
         
         try:
-            response = self.client.models.generate_content(
+            chat_completion = self.client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": content}
+                ],
                 model=Config.MODEL_NAME,
-                contents=content,
-                config=types.GenerateContentConfig(
-                    system_instruction=SYSTEM_PROMPT,
-                    response_mime_type='application/json',
-                    temperature=0.7,
-                )
+                temperature=0.3, 
+                response_format={"type": "json_object"}
             )
             
-            if not response.text:
-                print("Error: AI returned empty response.")
-                return None
+            response_content = chat_completion.choices[0].message.content
+            if not response_content: return None
 
             print("DEBUG: AI Response received.")
-            return json.loads(response.text)
+            result = json.loads(response_content)
+
+            defaults = {
+                "marked_html": content,
+                "corrections": [],
+                "polished_version": "",
+                "comment": "",
+                "vocabulary": [],
+                "mood": {"label": "Neutral", "color": "#6c757d"}
+            }
+            
+            for key, value in defaults.items():
+                if key not in result:
+                    result[key] = value
+
+            return result
 
         except Exception as e:
             print(f"AI Critical Error: {e}")

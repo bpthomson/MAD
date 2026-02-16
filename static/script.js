@@ -1,9 +1,17 @@
 /* diary/static/script.js */
 
 document.addEventListener('DOMContentLoaded', function() {
+    // 1. 啟動背景動畫
     initOrganicFlow(); 
+    
+    // 2. 啟動月曆 (如果在首頁)
     initCalendar();
 
+    // 3. [關鍵修正] 啟動互動式修正功能 (如果在結果頁)
+    // 之前漏了這一行，導致點擊沒反應
+    initInteractiveCorrections();
+
+    // 4. 輸入框自動長高
     const textarea = document.querySelector('textarea[name="content"]');
     if (textarea) {
         textarea.style.height = 'auto';
@@ -14,6 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // 5. Date Input 預設值
     const dateInput = document.getElementById('dateInput');
     if (dateInput && !dateInput.value) {
         dateInput.valueAsDate = new Date();
@@ -41,10 +50,71 @@ function copyToClipboard(btn) {
     });
 }
 
+// --- [核心功能] 互動式修正邏輯 ---
+function initInteractiveCorrections() {
+    // 抓取所有螢光筆標記
+    const highlights = document.querySelectorAll('mark.highlight');
+    // 抓取右側顯示面板
+    const detailsPanel = document.getElementById('correction-details-panel');
+
+    // 如果頁面上沒有標記或面板(例如在首頁)，則不執行
+    if (highlights.length === 0 || !detailsPanel) return;
+
+    highlights.forEach(mark => {
+        mark.addEventListener('click', function() {
+            // 1. 移除其他標記的 active 狀態
+            highlights.forEach(h => h.classList.remove('active'));
+            // 2. 點亮當前標記
+            this.classList.add('active');
+
+            // 3. 獲取資料索引
+            const index = this.getAttribute('data-index');
+            
+            // 4. 從全域變數 correctionsData 中讀取資料
+            // (correctionsData 是在 result.html 中透過 Jinja2 傳過來的)
+            if (typeof correctionsData !== 'undefined' && correctionsData[index]) {
+                const correction = correctionsData[index];
+
+                // 5. 更新右側面板內容 (加入淡入動畫)
+                detailsPanel.innerHTML = `
+                    <div class="w-100 text-start animation-fade-in">
+                        <div class="mb-4 p-3 rounded-3" style="background: rgba(255,255,255,0.5);">
+                            <h6 class="text-uppercase text-muted small mb-2 fw-bold" style="letter-spacing: 1px;">Original</h6>
+                            <span class="diff-del fs-5" style="text-decoration: none; background-color: transparent; border-bottom: 2px solid var(--diff-del-text); padding: 2px 0;">
+                                ${correction.original}
+                            </span>
+                        </div>
+                        
+                        <div class="text-center my-3">
+                            <i class="bi bi-arrow-down display-6 text-muted" style="opacity: 0.5;">↓</i>
+                        </div>
+
+                        <div class="mb-4 p-3 rounded-3" style="background: rgba(196, 232, 209, 0.3);">
+                            <h6 class="text-uppercase text-success small mb-2 fw-bold" style="letter-spacing: 1px;">Correction</h6>
+                            <span class="diff-add fs-4" style="background-color: transparent;">
+                                ${correction.correction}
+                            </span>
+                        </div>
+
+                        <div class="mt-4">
+                            <h6 class="text-uppercase text-muted small mb-2 fw-bold" style="letter-spacing: 1px;">Reason</h6>
+                            <p class="text-muted fst-italic" style="font-size: 1.05rem; line-height: 1.6;">
+                                ${correction.explanation}
+                            </p>
+                        </div>
+                    </div>
+                `;
+                // 移除預設的置中樣式，讓內容靠左對齊
+                detailsPanel.classList.remove('d-flex', 'align-items-center', 'justify-content-center', 'text-center');
+            }
+        });
+    });
+}
+
 // --- Calendar Logic ---
 let currentMonth = new Date().getMonth();
 let currentYear = new Date().getFullYear();
-let calendarData = {}; // 儲存 { "YYYY-MM-DD": "#color" }
+let calendarData = {}; 
 
 async function initCalendar() {
     const calendarContainer = document.getElementById('calendar-container');
@@ -109,13 +179,10 @@ function renderCalendar(year, month) {
 
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         
-        // 檢查是否有日記資料
         if (calendarData[dateStr]) {
             el.classList.add('has-entry');
-            // 動態設定小圓點顏色 (使用 CSS 變數)
             el.style.setProperty('--mood-color', calendarData[dateStr]);
         } else {
-            // 預設顏色
             el.style.setProperty('--mood-color', 'var(--text-main)');
         }
 
