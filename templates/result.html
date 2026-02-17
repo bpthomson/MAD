@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#cdc5b8">
     <title>Insight</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -24,13 +24,19 @@
                 </span>
                 {% endif %}
             </div>
-            <a href="/" class="btn btn-outline-secondary btn-sm">Back</a>
+            
+            <div class="d-flex gap-2">
+                {% if feedback.timestamp %}
+                <a href="/edit/{{ feedback.timestamp }}" class="btn btn-outline-primary btn-sm">Edit</a>
+                <a href="/delete/{{ feedback.timestamp }}" class="btn btn-outline-danger btn-sm" onclick="return confirm('Are you sure you want to delete this entry?');">Delete</a>
+                {% endif %}
+                <a href="/history" class="btn btn-outline-secondary btn-sm">Back</a>
+            </div>
         </div>
         
-        <div class="card mb-5 border-0 bg-transparent">
+        <div class="card mb-4 border-0 bg-transparent">
             <div class="card-body p-0">
-                <p class="fs-5" style="font-family: var(--font-hand); color: var(--accent-color);">
-                    <span class="text-muted small me-2 text-uppercase" style="font-family: var(--font-ui); letter-spacing: 1px;">Teacher's Note</span>
+                <p style="font-family: var(--font-hand); color: var(--accent-color); font-size: 1.3rem; line-height: 1.6;">
                     "{{ feedback.comment }}"
                 </p>
             </div>

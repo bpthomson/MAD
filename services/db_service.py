@@ -11,10 +11,9 @@ class DBService:
             'https://www.googleapis.com/auth/spreadsheets',
             'https://www.googleapis.com/auth/drive'
         ]
-        # 快取機制：將資料暫存在伺服器記憶體中
         self._records_cache = None
         self._last_fetch_time = None
-        self._cache_ttl = datetime.timedelta(minutes=15) # 每 15 分鐘自動刷新一次
+        self._cache_ttl = datetime.timedelta(minutes=15)
 
     def _get_connection(self):
         if self.gc is None:
@@ -27,7 +26,6 @@ class DBService:
             except Exception as e:
                 print(f"Auth Error: {e}")
                 raise e
-        
         try:
             return self.gc.open(Config.SPREADSHEET_NAME).sheet1
         except Exception:
@@ -40,28 +38,76 @@ class DBService:
             return self.gc.open(Config.SPREADSHEET_NAME).sheet1
 
     def _fetch_all_records(self, force=False):
-        """內部方法：取得所有資料 (優先讀快取)"""
         now = datetime.datetime.now()
-        
-        # 如果快取有效，直接回傳 (0秒延遲)
         if not force and self._records_cache is not None:
             if self._last_fetch_time and (now - self._last_fetch_time) < self._cache_ttl:
                 return self._records_cache
-
         try:
             sheet = self._get_connection()
             self._records_cache = sheet.get_all_records()
             self._last_fetch_time = now
-            print(f"DEBUG: Cache refreshed. {len(self._records_cache)} records loaded.")
             return self._records_cache
         except Exception as e:
             print(f"DB Error (Fetch All): {e}")
             return []
 
+    def delete_entry(self, timestamp):
+        try:
+            sheet = self._get_connection()
+            cell = sheet.find(timestamp, in_column=1)
+            if cell:
+                sheet.delete_rows(cell.row)
+                self._records_cache = None
+                return True
+            return False
+        except Exception as e:
+            print(f"Delete Error: {e}")
+            return False
+
+    def update_entry(self, old_timestamp, title, content, ai_result, custom_date=None):
+        try:
+            sheet = self._get_connection()
+            cell = sheet.find(old_timestamp, in_column=1)
+            if not cell:
+                return False
+            
+            # 決定新的 Timestamp (編輯後通常會更新時間，但您可以選擇只更新內容)
+            # 這裡我們生成一個新的 Timestamp 以反映最後修改時間，但保留用戶選的日期
+            if custom_date:
+                current_time = datetime.datetime.now().strftime("%H:%M:%S")
+                new_timestamp = f"{custom_date} {current_time}"
+            else:
+                new_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            corrections_str = json.dumps(ai_result.get('corrections', []), ensure_ascii=False)
+            vocab_str = json.dumps(ai_result.get('vocabulary', []), ensure_ascii=False)
+            mood_str = json.dumps(ai_result.get('mood', {'label': 'Neutral', 'color': '#6c757d'}), ensure_ascii=False)
+            
+            # 準備要覆蓋的整列資料
+            row_data = [
+                new_timestamp, 
+                title, 
+                content, 
+                ai_result.get('polished_version', ''), 
+                corrections_str, 
+                vocab_str, 
+                ai_result.get('comment', ''), 
+                mood_str,
+                ai_result.get('marked_html', '')
+            ]
+            
+            # 更新該列 (A到I欄)
+            sheet.update(range_name=f"A{cell.row}:I{cell.row}", values=[row_data])
+            
+            self._records_cache = None
+            return True
+        except Exception as e:
+            print(f"Update Error: {e}")
+            return False
+
     def save_entry(self, title, content, ai_result, custom_date=None):
         try:
             sheet = self._get_connection()
-            
             if custom_date:
                 current_time = datetime.datetime.now().strftime("%H:%M:%S")
                 timestamp = f"{custom_date} {current_time}"
@@ -73,81 +119,93 @@ class DBService:
             mood_str = json.dumps(ai_result.get('mood', {'label': 'Neutral', 'color': '#6c757d'}), ensure_ascii=False)
             
             row = [
-                timestamp,
-                title,
-                content,
-                ai_result.get('polished_version', ''),
-                corrections_str,
-                vocab_str,
-                ai_result.get('comment', ''),
-                mood_str
+                timestamp, 
+                title, 
+                content, 
+                ai_result.get('polished_version', ''), 
+                corrections_str, 
+                vocab_str, 
+                ai_result.get('comment', ''), 
+                mood_str,
+                ai_result.get('marked_html', '')
             ]
             sheet.append_row(row)
-            
-            # 重要：寫入新日記後，讓快取失效，確保下次讀到最新的
             self._records_cache = None 
             return True
         except Exception as e:
             print(f"DB Error (Save): {e}")
             return False
 
+    def _parse_row_data(self, row):
+        new_row = row.copy()
+        if 'Mood' in new_row and isinstance(new_row['Mood'], str):
+            try:
+                new_row['Mood'] = json.loads(new_row['Mood'])
+            except:
+                new_row['Mood'] = {'label': 'Neutral', 'color': '#6c757d'}
+        return new_row
+
     def get_recent_diaries(self, limit=20):
         records = self._fetch_all_records()
-        return list(reversed(records))[:limit]
+        parsed_records = [self._parse_row_data(row) for row in list(reversed(records))[:limit]]
+        return parsed_records
 
     def search_diaries(self, query):
-        """全文搜尋功能"""
-        if not query:
-            return self.get_recent_diaries()
-        
+        if not query: return self.get_recent_diaries()
         records = self._fetch_all_records()
         query = query.lower().strip()
         results = []
-        
-        # 倒序搜尋
         for row in reversed(records):
-            # 將標題、內容、評語串在一起搜尋
-            text_corpus = (
-                str(row.get('Title', '')) + 
-                str(row.get('Original', '')) + 
-                str(row.get('Comment', ''))
-            ).lower()
-            
+            text_corpus = (str(row.get('Title', '')) + str(row.get('Original', '')) + str(row.get('Comment', ''))).lower()
             if query in text_corpus:
-                results.append(row)
-        
+                results.append(self._parse_row_data(row))
         return results
 
+    def get_entry(self, timestamp):
+        records = self._fetch_all_records()
+        for row in records:
+            if str(row.get('Timestamp', '')) == timestamp:
+                return row
+        return None
+
     def get_calendar_data(self):
-        """從快取解析月曆顏色"""
         records = self._fetch_all_records()
         calendar_data = {}
-        
         for row in records:
             try:
-                # 處理 Timestamp 欄位 (假設是第一欄或 key='Timestamp')
-                # gspread get_all_records 使用 header 作為 key
-                # 請確保 Google Sheet 第一列包含 'Timestamp' 和 'Mood'
                 ts = str(row.get('Timestamp', '') or list(row.values())[0]) 
                 date_part = ts.split(' ')[0]
-                
-                # 解析情緒顏色
                 mood_raw = row.get('Mood', '') 
-                # 如果找不到 Mood key (例如舊資料)，使用預設色
-                
                 color = '#6c757d'
                 if mood_raw:
                     try:
                         if isinstance(mood_raw, str) and mood_raw.startswith('{'):
                             mood_data = json.loads(mood_raw)
                             color = mood_data.get('color', '#6c757d')
-                    except:
-                        pass
-                
+                    except: pass
                 calendar_data[date_part] = color
-            except:
-                continue
-                
+            except: continue
         return calendar_data
+
+    def get_context_for_ai(self, limit=3):
+        try:
+            records = self._fetch_all_records()
+            recent = list(reversed(records))[:limit]
+            context_list = []
+            for row in recent:
+                date = str(row.get('Timestamp', '')).split(' ')[0]
+                summary = str(row.get('Title', ''))
+                mood_label = ""
+                mood_raw = row.get('Mood', '')
+                if mood_raw and isinstance(mood_raw, str) and mood_raw.startswith('{'):
+                     try:
+                         mood_data = json.loads(mood_raw)
+                         mood_label = f" (Mood: {mood_data.get('label', 'Neutral')})"
+                     except: pass
+                if summary and summary != "No Title":
+                    context_list.append(f"- {date}{mood_label}: {summary}")
+            return "\n".join(reversed(context_list))
+        except Exception:
+            return ""
 
 db_service = DBService()

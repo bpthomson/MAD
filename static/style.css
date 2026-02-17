@@ -31,8 +31,6 @@ body {
     line-height: 1.8;
     overflow-x: hidden;
     min-height: 100vh;
-    
-    /* 字體柔化設定 */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
@@ -45,16 +43,16 @@ h1, h2, h3, h4, h5, h6, .nav-link, .btn, .calendar-header {
     letter-spacing: 1px;
 }
 
-/* --- [核心修改] 統一閱讀與寫作的排版參數 --- */
-/* 定義一個 mixin 的概念，應用在 result 區塊與 textarea */
 #marked-original-text, textarea.form-control, .native-polish-text {
-    line-height: 2.0 !important; /* [修改] 從 2.4 改為 2.0，緊湊但舒適 */
-    font-size: 1.05rem !important; /* [修改] 從 1.15rem 改為 1.05rem */
-    letter-spacing: 0.3px;       /* [修改] 微調字距 */
+    line-height: 2.0 !important;
+    font-size: 1.05rem !important;
+    letter-spacing: 0.3px;
     color: #3d3d3d;
     font-weight: 400;
 }
 
+/* ... (保留 card, card-header 等其他樣式) ... */
+/* 為了節省篇幅，這裡省略中間未改動的部分，請保持原樣 */
 /* 玻璃擬態卡片 */
 .card {
     background: var(--card-bg);
@@ -80,7 +78,7 @@ textarea.form-control, input.form-control, .custom-date-input {
     background-color: rgba(255, 255, 255, 0.4);
     border: none;
     border-radius: 8px;
-    padding: 1.5rem; /* 增加內距，讓文字不要貼邊 */
+    padding: 1.5rem;
     font-family: var(--font-reading);
     color: var(--text-main);
     box-shadow: inset 0 2px 5px rgba(0,0,0,0.01);
@@ -123,11 +121,10 @@ textarea::placeholder, input::placeholder {
 }
 .btn-outline-secondary:hover { background-color: var(--text-main); color: #fff; }
 
-/* 螢光筆樣式 */
 mark.highlight {
     background-color: var(--highlight-bg);
     color: inherit;
-    padding: 2px 4px; /* [修改] 稍微縮小內距，配合緊湊排版 */
+    padding: 2px 4px;
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -169,3 +166,20 @@ mark.highlight.active {
 .search-box-container { width: 100%; }
 .search-input { border-top-right-radius: 0 !important; border-bottom-right-radius: 0 !important; }
 .search-box-container .btn { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+
+/* --- [關鍵新增] 手機版優化 --- */
+@media (max-width: 768px) {
+    /* 防止 iPhone 點擊輸入框時自動縮放 (文字必須至少 16px) */
+    textarea.form-control, input.form-control, .custom-date-input {
+        font-size: 16px !important;
+        padding: 1rem !important; /* 手機版稍微縮小 padding 以節省空間 */
+    }
+    
+    /* 增加底部緩衝，避免被手機瀏覽器工具列遮擋 */
+    body { padding-bottom: 80px; }
+    
+    /* 讓按鈕在手機上更容易點擊 */
+    .btn {
+        padding: 12px 20px;
+    }
+}

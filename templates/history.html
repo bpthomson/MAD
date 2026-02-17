@@ -39,29 +39,49 @@
             {% endif %}
 
             {% for row in records %}
-            <div class="position-relative mb-5">
+            <div class="position-relative mb-4">
                 <div class="timeline-dot"></div>
-                <div class="text-muted small mb-2 ps-2" style="font-family: var(--font-hand); font-size: 1.1rem;">
-                    {{ row.Timestamp }}
-                </div>
-                <div class="card">
-                    <div class="card-body p-4">
-                        <h5 class="fw-bold mb-2">{{ row.Title }}</h5>
-                        <p class="text-muted mb-3 text-truncate" style="font-family: var(--font-reading);">
-                            {{ row.Original }}
-                        </p>
-                        <div class="text-end border-top pt-3" style="border-color: rgba(0,0,0,0.05) !important;">
-                            <small class="text-muted fst-italic" style="color: var(--accent-color) !important;">
-                                "{{ row.Comment }}"
-                            </small>
-                        </div>
+                
+                <a href="/entry/{{ row.Timestamp }}" class="text-decoration-none text-reset">
+                    <div class="card card-hover-effect border-0 shadow-sm" style="transition: transform 0.2s;">
+                        <div class="card-body p-4">
+                            
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-muted small" style="font-family: var(--font-hand);">
+                                    {{ row.Timestamp }}
+                                </span>
+                                {% if row.Mood and row.Mood.label %}
+                                <span class="badge rounded-pill" 
+                                      style="background-color: {{ row.Mood.color }}; font-weight: normal; opacity: 0.9;">
+                                    {{ row.Mood.label }}
+                                </span>
+                                {% endif %}
+                            </div>
+
+                            <h5 class="fw-bold mb-2 text-dark" style="font-family: var(--font-hand); font-size: 1.4rem;">
+                                {{ row.Title }}
+                            </h5>
+
+                            <p class="text-muted mb-0 text-truncate" style="font-family: var(--font-reading);">
+                                {{ row.Original | truncate(80) }}
+                            </p>
+                            
+                            </div>
                     </div>
-                </div>
+                </a>
             </div>
             {% endfor %}
         </div>
     </div>
     
     <script src="{{ url_for('static', filename='script.js') }}"></script>
+    
+    <style>
+        .card-hover-effect:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08) !important;
+            cursor: pointer;
+        }
+    </style>
 </body>
 </html>
