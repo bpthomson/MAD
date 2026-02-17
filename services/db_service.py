@@ -18,10 +18,22 @@ class DBService:
     def _get_connection(self):
         if self.gc is None:
             try:
-                creds = Credentials.from_service_account_file(
-                    Config.CREDENTIALS_FILE, 
-                    scopes=self.scope
-                )
+                # [雲端部署邏輯] 優先檢查環境變數中的 JSON 字串
+                if Config.GOOGLE_CREDENTIALS_JSON:
+                    print("Using Google Credentials from Environment Variable")
+                    creds_dict = json.loads(Config.GOOGLE_CREDENTIALS_JSON)
+                    creds = Credentials.from_service_account_info(
+                        creds_dict, 
+                        scopes=self.scope
+                    )
+                else:
+                    # [本地開發邏輯] 讀取實體檔案
+                    print(f"Using Google Credentials from File: {Config.CREDENTIALS_FILE}")
+                    creds = Credentials.from_service_account_file(
+                        Config.CREDENTIALS_FILE, 
+                        scopes=self.scope
+                    )
+                
                 self.gc = gspread.authorize(creds)
             except Exception as e:
                 print(f"Auth Error: {e}")
@@ -30,10 +42,13 @@ class DBService:
             return self.gc.open(Config.SPREADSHEET_NAME).sheet1
         except Exception:
             print("連線重試中...")
-            creds = Credentials.from_service_account_file(
-                Config.CREDENTIALS_FILE, 
-                scopes=self.scope
-            )
+            # 重試邏輯 (保持一致性)
+            if Config.GOOGLE_CREDENTIALS_JSON:
+                creds_dict = json.loads(Config.GOOGLE_CREDENTIALS_JSON)
+                creds = Credentials.from_service_account_info(creds_dict, scopes=self.scope)
+            else:
+                creds = Credentials.from_service_account_file(Config.CREDENTIALS_FILE, scopes=self.scope)
+            
             self.gc = gspread.authorize(creds)
             return self.gc.open(Config.SPREADSHEET_NAME).sheet1
 
@@ -51,6 +66,7 @@ class DBService:
             print(f"DB Error (Fetch All): {e}")
             return []
 
+    # --- [CRUD] 刪除功能 ---
     def delete_entry(self, timestamp):
         try:
             sheet = self._get_connection()
@@ -64,6 +80,7 @@ class DBService:
             print(f"Delete Error: {e}")
             return False
 
+    # --- [CRUD] 更新功能 ---
     def update_entry(self, old_timestamp, title, content, ai_result, custom_date=None):
         try:
             sheet = self._get_connection()
@@ -71,8 +88,6 @@ class DBService:
             if not cell:
                 return False
             
-            # 決定新的 Timestamp (編輯後通常會更新時間，但您可以選擇只更新內容)
-            # 這裡我們生成一個新的 Timestamp 以反映最後修改時間，但保留用戶選的日期
             if custom_date:
                 current_time = datetime.datetime.now().strftime("%H:%M:%S")
                 new_timestamp = f"{custom_date} {current_time}"
@@ -83,7 +98,6 @@ class DBService:
             vocab_str = json.dumps(ai_result.get('vocabulary', []), ensure_ascii=False)
             mood_str = json.dumps(ai_result.get('mood', {'label': 'Neutral', 'color': '#6c757d'}), ensure_ascii=False)
             
-            # 準備要覆蓋的整列資料
             row_data = [
                 new_timestamp, 
                 title, 
@@ -98,13 +112,13 @@ class DBService:
             
             # 更新該列 (A到I欄)
             sheet.update(range_name=f"A{cell.row}:I{cell.row}", values=[row_data])
-            
             self._records_cache = None
             return True
         except Exception as e:
             print(f"Update Error: {e}")
             return False
 
+    # --- [CRUD] 新增功能 ---
     def save_entry(self, title, content, ai_result, custom_date=None):
         try:
             sheet = self._get_connection()
