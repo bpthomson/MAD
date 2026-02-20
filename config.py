@@ -6,6 +6,7 @@ load_dotenv()
 class Config:
     GROQ_API_KEY = os.getenv("GROQ_API_KEY")
     SECRET_KEY = os.getenv("SECRET_KEY", "dev_fallback_secret")
+    DIARY_PASSWORD = os.getenv("DIARY_PASSWORD", "default_password")
     
     CREDENTIALS_FILE = os.getenv("GOOGLE_SHEETS_CREDENTIALS_FILE", "credentials.json")
     SPREADSHEET_NAME = os.getenv("GOOGLE_SHEETS_NAME", "DiaryDB")

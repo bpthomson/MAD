@@ -1,6 +1,7 @@
-from flask import Flask, render_template, request, jsonify, send_from_directory, redirect, url_for
+from flask import Flask, render_template, request, jsonify, send_from_directory, redirect, url_for, session
 import markdown
 import json
+import functools
 from config import Config
 from services.ai_service import ai_service
 from services.db_service import db_service
@@ -10,7 +11,36 @@ Config.validate()
 app = Flask(__name__)
 app.secret_key = Config.SECRET_KEY
 
+def login_required(f):
+    @functools.wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('logged_in'):
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        password = request.form.get('password')
+        if password == Config.DIARY_PASSWORD:
+            session['logged_in'] = True
+            return redirect(url_for('index'))
+        else:
+            return render_template('login.html', error="密碼錯誤")
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.pop('logged_in', None)
+    return redirect(url_for('login'))
+
+@app.route('/ping')
+def ping():
+    return "OK", 200
+
 @app.route('/', methods=['GET', 'POST'])
+@login_required
 def index():
     if request.method == 'POST':
         content = request.form.get('content')
@@ -50,31 +80,30 @@ def index():
 
     return render_template('index.html')
 
-# --- [新增] 編輯路由 ---
 @app.route('/edit/<path:timestamp>')
+@login_required
 def edit_entry(timestamp):
     entry = db_service.get_entry(timestamp)
     if not entry:
         return "Entry not found", 404
     
-    # 處理日期格式，因為 input[type=date] 需要 YYYY-MM-DD
     ts = entry.get('Timestamp', '')
     date_val = ts.split(' ')[0] if ts else ''
     
-    # 渲染首頁，但帶入舊資料
     return render_template('index.html', 
                            content=entry.get('Original', ''), 
                            date_value=date_val, 
                            old_timestamp=ts,
                            is_edit=True)
 
-# --- [新增] 刪除路由 ---
 @app.route('/delete/<path:timestamp>')
+@login_required
 def delete_entry(timestamp):
     db_service.delete_entry(timestamp)
     return redirect('/history')
 
 @app.route('/entry/<path:timestamp>')
+@login_required
 def view_entry(timestamp):
     entry = db_service.get_entry(timestamp)
     if not entry:
@@ -96,12 +125,13 @@ def view_entry(timestamp):
         'polished_html': markdown.markdown(entry.get('Polished', '')),
         'corrections': corrections,
         'vocabulary': vocabulary,
-        'timestamp': timestamp # 傳入 timestamp 以便顯示編輯/刪除按鈕
+        'timestamp': timestamp
     }
 
     return render_template('result.html', entry=entry.get('Original', ''), feedback=ai_result)
 
 @app.route('/history')
+@login_required
 def history():
     query = request.args.get('q')
     if query:
@@ -111,6 +141,7 @@ def history():
     return render_template('history.html', records=records, search_query=query)
 
 @app.route('/api/dates')
+@login_required
 def get_dates():
     calendar_data = db_service.get_calendar_data()
     return jsonify(calendar_data)
