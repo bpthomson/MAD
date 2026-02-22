@@ -14,12 +14,39 @@ document.addEventListener('DOMContentLoaded', function() {
     // 4. 輸入框自動長高
     const textarea = document.querySelector('textarea[name="content"]');
     if (textarea) {
-        textarea.style.height = 'auto';
-        textarea.style.height = (textarea.scrollHeight) + 'px';
-        textarea.addEventListener('input', function() {
-            this.style.height = 'auto';
-            this.style.height = (this.scrollHeight) + 'px';
-        });
+        textarea.style.overflow = 'hidden';
+        textarea.style.transition = 'none';
+
+        const ghost = document.createElement('textarea');
+        ghost.className = textarea.className;
+        ghost.style.cssText = `
+            position: absolute !important;
+            top: -9999px !important;
+            left: -9999px !important;
+            visibility: hidden !important;
+            height: 0 !important;
+            min-height: 0 !important;
+            overflow: hidden !important;
+            pointer-events: none !important;
+        `;
+        document.body.appendChild(ghost);
+
+        const borderOffset = textarea.offsetHeight - textarea.clientHeight;
+        const initialHeight = textarea.offsetHeight;
+
+        const adjustHeight = () => {
+            ghost.style.width = textarea.offsetWidth + 'px';
+            ghost.value = textarea.value;
+ 
+            const newHeight = Math.max(initialHeight, ghost.scrollHeight + borderOffset);
+            textarea.style.height = newHeight + 'px';
+        };
+
+        textarea.addEventListener('input', adjustHeight);
+        window.addEventListener('resize', adjustHeight);
+        
+        // 初始執行一次
+        adjustHeight();
     }
     
     // 5. Date Input 預設值
