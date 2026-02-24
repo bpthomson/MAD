@@ -51,9 +51,6 @@ h1, h2, h3, h4, h5, h6, .nav-link, .btn, .calendar-header {
     font-weight: 400;
 }
 
-/* ... (保留 card, card-header 等其他樣式) ... */
-/* 為了節省篇幅，這裡省略中間未改動的部分，請保持原樣 */
-/* 玻璃擬態卡片 */
 .card {
     background: var(--card-bg);
     backdrop-filter: blur(8px);
@@ -73,7 +70,6 @@ h1, h2, h3, h4, h5, h6, .nav-link, .btn, .calendar-header {
     color: var(--text-muted);
 }
 
-/* 輸入框樣式 */
 textarea.form-control, input.form-control, .custom-date-input {
     background-color: rgba(255, 255, 255, 0.4);
     border: none;
@@ -167,18 +163,14 @@ mark.highlight.active {
 .search-input { border-top-right-radius: 0 !important; border-bottom-right-radius: 0 !important; }
 .search-box-container .btn { border-top-left-radius: 0; border-bottom-left-radius: 0; }
 
-/* --- [關鍵新增] 手機版優化 --- */
 @media (max-width: 768px) {
-    /* 防止 iPhone 點擊輸入框時自動縮放 (文字必須至少 16px) */
     textarea.form-control, input.form-control, .custom-date-input {
         font-size: 16px !important;
-        padding: 1rem !important; /* 手機版稍微縮小 padding 以節省空間 */
+        padding: 1rem !important;
     }
     
-    /* 增加底部緩衝，避免被手機瀏覽器工具列遮擋 */
     body { padding-bottom: 80px; }
     
-    /* 讓按鈕在手機上更容易點擊 */
     .btn {
         padding: 12px 20px;
     }

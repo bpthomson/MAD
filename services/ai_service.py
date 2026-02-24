@@ -13,11 +13,12 @@ Use this to maintain a continuous, personal connection (e.g., if they were sick,
 {context_data}
 
 **Your Tasks:**
-1.  **Corrections:** Identify all grammatical errors and unnatural word choices, BUT be lenient with style.
-    * **Standard:** Use **American English**.
-    * **Tolerance:** **ACCEPT** casual, conversational, and diary-style grammar (e.g., sentence fragments like "Got no time"). DO NOT correct them unless confusing.
-    * **Anti-Chinglish Focus:** Aggressively identify unnatural phrasing caused by direct translation from Mandarin.
-    * Be detailed and educational only when necessary.
+1. Corrections: Rigorously identify ALL grammatical errors and unnatural Chinglish phrasing. Act as an uncompromising advanced English writing coach.
+    * Absolute Grammar Strictness: You MUST correct fundamental grammar errors (e.g., wrong prepositions, misuse of conjunctions like "despite + clause", singular/plural noun errors, incorrect word forms). Do not let any structural mistake slip.
+    * Ruthless Anti-Chinglish: Aggressively target awkward phrasing caused by direct translation from Mandarin. If a phrase is grammatically correct but a native speaker would never use it in that context (e.g., using "go hand in hand" to compare scenery, or "searched randomly" for discovering a place), you MUST correct it and explain the native logic.
+    * Defined Tolerance (Native Casual ONLY): You may ONLY accept casual phrasing if it is a common native habit (e.g., dropping pronouns like "Got no time"). Do NOT use this rule to excuse unnatural phrasing or vocabulary misuse.
+    * Actionable Explanations: Briefly explain the grammatical rule or why the Chinglish phrase fails in American English context.
+    * Snippet Strictness: The `context_snippet` MUST contain EXACTLY 3 words before and 3 words after the `original` word. Count strictly.
 2.  **Polished Version:** Rewrite the diary entry in **natural, fluent American English**.
     * **Style:** Use a **narrative, written diary style**.
     * **Constraint:** Use complete sentences where appropriate. Keep the tone personal, authentic, and grounded.
@@ -45,15 +46,17 @@ Use this to maintain a continuous, personal connection (e.g., if they were sick,
   "title": "I did X and Y...",
   "corrections": [
     {{ 
-      "original": "THE EXACT MINIMAL INCORRECT WORD(S) ONLY. Do NOT extract the whole sentence.", 
+      "original": "THE EXACT MINIMAL INCORRECT WORD(S) ONLY.", 
       "correction": "the right part", 
       "explanation": "Detailed reason...",
-      "context_snippet": "Include exactly 3 words before and 3 words after the 'original' word to help locate it uniquely." 
+      "unique_anchor": "Extract a continuous substring of 4 to 7 words from the original text that contains the 'original' word. This acts as a search anchor and MUST be an exact copy from the text."
     }}
   ],
   "polished_version": "...",
   "comment": "...",
-  "vocabulary": [ ... ],
+  "vocabulary": [
+    {{ "word": "...", "meaning": "...", "example": "..." }}
+  ],
   "mood": {{
     "label": "One-word mood",
     "color": "#hexcode"
@@ -92,30 +95,63 @@ class AIService:
 
             marked_text = content
             corrections = result.get("corrections", [])
+            spans_to_mark = []
             
+            # 第一階段：計算所有錯誤單字的絕對座標 (Three-Tier Strategy)
             for i, corr in enumerate(corrections):
                 orig_word = corr.get("original", "")
-                context_snippet = corr.get("context_snippet", "")
+                anchor = corr.get("unique_anchor", "")
                 
-                if orig_word and context_snippet and context_snippet in marked_text:
+                if not orig_word or orig_word not in content:
+                    continue
+                
+                # 策略 1：如果這個錯誤字串在全文只出現一次，直接定位！(完美解決長句子)
+                if content.count(orig_word) == 1:
+                    absolute_start = content.find(orig_word)
+                    absolute_end = absolute_start + len(orig_word)
+                    spans_to_mark.append((absolute_start, absolute_end, i, orig_word))
+                    continue
                     
-                    marked_snippet = context_snippet.replace(
-                        orig_word, 
-                        f'<mark class="highlight" data-index="{i}">{orig_word}</mark>', 
-                        1 
-                    )
-                    
-                    marked_text = marked_text.replace(context_snippet, marked_snippet, 1)
-                    
-                elif orig_word and orig_word in marked_text:
-                    marked_text = marked_text.replace(
-                        orig_word, 
-                        f'<mark class="highlight" data-index="{i}">{orig_word}</mark>', 
-                        1
-                    )
+                # 策略 2：如果出現多次 (例如單字 iem)，利用 anchor 來精準定位
+                if anchor and anchor in content:
+                    anchor_start = content.find(anchor)
+                    word_offset = anchor.find(orig_word) 
+                    # 確保 orig_word 真的包在 anchor 裡面，且長度合理
+                    if word_offset != -1:
+                        absolute_start = anchor_start + word_offset
+                        absolute_end = absolute_start + len(orig_word)
+                        spans_to_mark.append((absolute_start, absolute_end, i, orig_word))
+                        continue
+                        
+                # 策略 3 (Failsafe)：如果字串出現多次，但 AI 給的 anchor 爛掉找不到
+                # 退而求其次，直接標記我們找到的第一個匹配項
+                absolute_start = content.find(orig_word)
+                absolute_end = absolute_start + len(orig_word)
+                spans_to_mark.append((absolute_start, absolute_end, i, orig_word))
+
+            # 第二階段：依座標由後往前排序 (Reverse order)
+            spans_to_mark.sort(key=lambda x: x[0], reverse=True)
+            
+            # 第三階段：過濾重疊座標 (防止 HTML 巢狀破壞)
+            filtered_spans = []
+            last_start = float('inf')
+            for span in spans_to_mark:
+                start_idx, end_idx, idx, orig = span
+                # 確保當前標籤的結尾，不會超車上一個標籤的開頭
+                if end_idx <= last_start:
+                    filtered_spans.append(span)
+                    last_start = start_idx
+            
+            # 第四階段：執行精準插入
+            for start_idx, end_idx, idx, orig in filtered_spans:
+                marked_text = (
+                    marked_text[:start_idx] + 
+                    f'<mark class="highlight" data-index="{idx}">{orig}</mark>' + 
+                    marked_text[end_idx:]
+                )
             
             result["marked_html"] = marked_text
-
+            
             defaults = {
                 "title": content[:30] + "...",
                 "marked_html": content,

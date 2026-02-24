@@ -1,17 +1,12 @@
 /* diary/static/script.js */
 
 document.addEventListener('DOMContentLoaded', function() {
-    // 1. 啟動背景動畫
     initOrganicFlow(); 
     
-    // 2. 啟動月曆 (如果在首頁)
     initCalendar();
 
-    // 3. [關鍵修正] 啟動互動式修正功能 (如果在結果頁)
-    // 之前漏了這一行，導致點擊沒反應
     initInteractiveCorrections();
 
-    // 4. 輸入框自動長高
     const textarea = document.querySelector('textarea[name="content"]');
     if (textarea) {
         textarea.style.overflow = 'hidden';
@@ -45,11 +40,9 @@ document.addEventListener('DOMContentLoaded', function() {
         textarea.addEventListener('input', adjustHeight);
         window.addEventListener('resize', adjustHeight);
         
-        // 初始執行一次
         adjustHeight();
     }
     
-    // 5. Date Input 預設值
     const dateInput = document.getElementById('dateInput');
     if (dateInput && !dateInput.value) {
         dateInput.valueAsDate = new Date();
@@ -77,32 +70,22 @@ function copyToClipboard(btn) {
     });
 }
 
-// --- [核心功能] 互動式修正邏輯 ---
 function initInteractiveCorrections() {
-    // 抓取所有螢光筆標記
     const highlights = document.querySelectorAll('mark.highlight');
-    // 抓取右側顯示面板
     const detailsPanel = document.getElementById('correction-details-panel');
 
-    // 如果頁面上沒有標記或面板(例如在首頁)，則不執行
     if (highlights.length === 0 || !detailsPanel) return;
 
     highlights.forEach(mark => {
         mark.addEventListener('click', function() {
-            // 1. 移除其他標記的 active 狀態
             highlights.forEach(h => h.classList.remove('active'));
-            // 2. 點亮當前標記
             this.classList.add('active');
 
-            // 3. 獲取資料索引
             const index = this.getAttribute('data-index');
-            
-            // 4. 從全域變數 correctionsData 中讀取資料
-            // (correctionsData 是在 result.html 中透過 Jinja2 傳過來的)
+ 
             if (typeof correctionsData !== 'undefined' && correctionsData[index]) {
                 const correction = correctionsData[index];
 
-                // 5. 更新右側面板內容 (加入淡入動畫)
                 detailsPanel.innerHTML = `
                     <div class="w-100 text-start animation-fade-in">
                         <div class="mb-4 p-3 rounded-3" style="background: rgba(255,255,255,0.5);">
@@ -131,7 +114,6 @@ function initInteractiveCorrections() {
                         </div>
                     </div>
                 `;
-                // 移除預設的置中樣式，讓內容靠左對齊
                 detailsPanel.classList.remove('d-flex', 'align-items-center', 'justify-content-center', 'text-center');
             }
         });
