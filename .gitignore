@@ -1,0 +1,30 @@
+# General
+.DS_Store
+.vscode/
+*.log
+*.ipynb
+
+# Python Backend
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+.env
+credentials.json
+
+# Node/Vue Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+.npm/
+
+# Vue IDE
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
