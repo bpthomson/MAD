@@ -1,72 +1,62 @@
 # AI Diary Assistant
 
-An intelligent, decoupled web application that helps you polish your diary entries, correct your English grammar, and learn new vocabulary using advanced LLMs.
+An intelligent, decoupled web application that leverages advanced LLMs to polish diary entries, correct English grammar, and teach vocabulary in context. 
 
-## Architecture
+This document explains **how the repository works internally** and the architecture of the system.
 
-This project is separated into a frontend and backend architecture:
+## 🏗 System Architecture & How it Works
 
-- **Frontend**: Vue 3 + Vite. Provides a responsive, glassmorphic UI for composing entries, viewing history, and interacting with AI corrections.
-- **Backend**: Flask (Python). Serves as a stateless RESTful API.
-- **Database**: Google Sheets API. Used as a lightweight, accessible database for storing diary entries.
-- **AI Engine**: Groq API. Powers the grammar correction, style polishing, vocabulary extraction, and mood analysis.
+The project is split into two distinct tiers: a **Vue 3 SPA** (Single Page Application) frontend and a **Flask (Python)** backend REST API. 
 
-## Features
+### 1. The Brain: AI Integration (Groq API)
+The core intelligence of the app is powered by the **Groq API**. 
+- In `backend/services/ai_service.py`, the system constructs a rigorous system prompt instructing the model to act as a strict English coach.
+- It dynamically queries Groq's `/models` endpoint to list available models, filtering out audio models like Whisper, and defaults to `llama-3.3-70b-versatile` for high-speed, high-quality reasoning.
+- The AI returns structured JSON containing grammar corrections, a polished rewrite, 5 advanced vocabulary words, a sentiment analysis (mood), and exact string-matching anchors to map corrections back to the original text.
 
-- **Interactive Corrections**: Click on highlighted words in your original entry to see detailed grammar explanations.
-- **Dynamic Model Selection**: Connects to the Groq API to fetch the latest available LLMs (defaulting to `llama-3.3-70b-versatile`).
-- **Vocabulary Bank**: Automatically extracts and defines 5 advanced vocabulary words based on your entry's context.
-- **Mood Tracking**: Analyzes the emotional tone of your entry and assigns a color-coded mood label.
+### 2. The Storage: Database (Google Sheets API)
+Instead of a traditional SQL database, this project uses **Google Sheets** as a lightweight, accessible database (`backend/services/db_service.py`).
+- It uses the `gspread` library and authenticates via a Service Account (`credentials.json` or environment variables).
+- **Caching**: To minimize API calls to Google, the backend caches the spreadsheet records with a 15-minute TTL.
+- When a diary is saved, all the AI-generated JSON data (corrections, vocabulary, mood) is serialized into strings and saved alongside the raw text and polished HTML in the sheet.
 
-## Setup Instructions
+### 3. The Backend: Flask REST API (`backend/app.py`)
+The backend is completely stateless and handles routing:
+- **Authentication**: A simple global password is required. The backend issues a session cookie upon login. All endpoints use a `@login_required` decorator.
+- **Data Flow**: When the frontend submits a diary entry (`POST /api/diary`), the backend grabs the user's 3 most recent entries from the DB to give the AI *context* (allowing the AI to follow up on past events). It then calls the `ai_service`, saves the result via `db_service`, and returns the newly generated timestamp back to the frontend.
 
-### 1. Backend Setup
+### 4. The Frontend: Vue 3 + Vite (`frontend/`)
+The frontend is responsible for the interactive user experience:
+- **Proxying**: The `vite.config.js` proxies all `/api` requests to the local Flask server on port 5000, preventing CORS issues during development.
+- **Views**: 
+  - `index.vue`: The main writing interface. It fetches the available Groq models dynamically so the user can choose their preferred LLM.
+  - `result.vue`: The Insight page. It implements a split-pane layout parsing the AI's JSON payload to create interactive text highlighting—clicking a highlighted word in the original text maps to the exact correction reason in the details panel.
+  - `history.vue`: Fetches the timeline of entries, decoding the serialized mood data to display color-coded sentiment tags.
 
-1. Navigate to the `backend/` directory:
-   ```bash
-   cd backend
-   ```
-2. Create and activate a virtual environment:
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate
-   ```
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. Create a `.env` file in the `backend/` directory with the following variables:
-   ```env
-   GROQ_API_KEY=your_groq_api_key
-   SECRET_KEY=your_flask_secret_key
-   DIARY_PASSWORD=your_app_login_password
-   ```
-5. Add your Google Sheets Service Account credentials as `credentials.json` in the `backend/` directory.
+---
 
-### 2. Frontend Setup
+## 🛠 Local Setup & Development
 
-1. Navigate to the `frontend/` directory:
-   ```bash
-   cd frontend
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
+### Backend (Python via `uv`)
+We use **`uv`** for lightning-fast Python environment management instead of the standard built-in `venv`.
 
-## Running the Application
+```bash
+cd backend
+# Create a virtual environment with uv
+uv venv
+# Activate the environment
+source .venv/bin/activate
+# Install dependencies instantly
+uv pip install -r requirements.txt
 
-1. **Start the Backend Server**:
-   ```bash
-   cd backend
-   source .venv/bin/activate
-   python app.py
-   ```
-   The backend will run on `http://127.0.0.1:5000`.
+# Start the Flask API
+python app.py
+```
+*(Ensure you have your `.env` configured with `GROQ_API_KEY`, `SECRET_KEY`, and `DIARY_PASSWORD`, along with a valid `credentials.json` for Google Sheets).*
 
-2. **Start the Frontend Development Server**:
-   ```bash
-   cd frontend
-   npm run dev
-   ```
-   The frontend will run on `http://localhost:5173`. Vite is configured to proxy `/api` requests to the Flask backend automatically.
+### Frontend (Node.js)
+```bash
+cd frontend
+npm install
+npm run dev
+```
