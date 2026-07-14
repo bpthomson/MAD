@@ -113,7 +113,7 @@ class DBService:
             # 更新該列 (A到I欄)
             sheet.update(range_name=f"A{cell.row}:I{cell.row}", values=[row_data])
             self._records_cache = None
-            return True
+            return new_timestamp
         except Exception as e:
             print(f"Update Error: {e}")
             return False
@@ -145,7 +145,7 @@ class DBService:
             ]
             sheet.append_row(row)
             self._records_cache = None 
-            return True
+            return timestamp
         except Exception as e:
             print(f"DB Error (Save): {e}")
             return False

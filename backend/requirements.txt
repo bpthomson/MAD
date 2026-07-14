@@ -4,4 +4,4 @@ google-auth
 groq
 python-dotenv
 markdown
-gunicorn
+gunicornflask-cors

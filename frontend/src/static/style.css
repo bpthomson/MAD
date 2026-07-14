@@ -70,7 +70,7 @@ h1, h2, h3, h4, h5, h6, .nav-link, .btn, .calendar-header {
     color: var(--text-muted);
 }
 
-textarea.form-control, input.form-control, .custom-date-input {
+textarea.form-control, input.form-control, .custom-date-input, .custom-model-select {
     background-color: rgba(255, 255, 255, 0.4);
     border: none;
     border-radius: 8px;
@@ -81,10 +81,28 @@ textarea.form-control, input.form-control, .custom-date-input {
     transition: all 0.3s ease;
 }
 
-textarea.form-control:focus, input.form-control:focus {
+textarea.form-control:focus, input.form-control:focus, .custom-model-select:focus {
     background-color: rgba(255, 255, 255, 0.8);
     outline: none;
     box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+
+.custom-model-select {
+    padding: 0.35rem 1rem !important;
+    font-family: var(--font-ui);
+    font-size: 0.95rem;
+    color: var(--text-main);
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23636e72' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1em;
+    padding-right: 2.2rem !important;
+}
+.custom-model-select option {
+    background-color: #f4f1ea;
+    color: var(--text-main);
 }
 
 textarea::placeholder, input::placeholder { 
