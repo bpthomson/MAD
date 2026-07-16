@@ -1,4 +1,4 @@
-# AI Diary Assistant
+# MAD — My AI Diary
 
 An intelligent, decoupled web application that leverages advanced LLMs to polish diary entries, correct English grammar, and teach vocabulary in context. 
 
