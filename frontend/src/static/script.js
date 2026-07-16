@@ -132,8 +132,8 @@ async function initCalendar() {
     if (!calendarContainer || !dateInput) return;
 
     try {
-        const response = await fetch('/api/dates');
-        calendarData = await response.json();
+        const { data } = await window.__api.get('/api/dates');
+        calendarData = data;
     } catch (e) {
         console.error("Failed to fetch dates", e);
     }

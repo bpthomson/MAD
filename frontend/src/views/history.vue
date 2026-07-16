@@ -57,21 +57,21 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import api from '../api'
 
 const records = ref([])
 const searchQuery = ref('')
 
 const fetchHistory = async () => {
     try {
-        const res = await fetch(`/api/history?q=${searchQuery.value}`)
-        if (res.ok) {
-            const data = await res.json()
-            records.value = data.records
-        } else if (res.status === 401) {
-            window.location.href = '/login'
-        }
+        const { data } = await api.get('/api/history', { params: { q: searchQuery.value } })
+        records.value = data.records
     } catch (e) {
-        console.error(e)
+        if (e.response && e.response.status === 401) {
+            window.location.href = '/login'
+        } else {
+            console.error(e)
+        }
     }
 }
 

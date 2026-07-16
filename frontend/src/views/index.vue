@@ -63,6 +63,7 @@
 <script setup>
 import { ref, onMounted, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import api from '../api'
 
 const router = useRouter()
 const route = useRoute()
@@ -83,15 +84,12 @@ const form = reactive({
 onMounted(async () => {
     // Fetch models
     try {
-        const mRes = await fetch('/api/models')
-        if (mRes.ok) {
-            const mData = await mRes.json()
-            availableModels.value = mData.models || []
-            if (mData.default) {
-                form.model = mData.default
-            } else if (availableModels.value.length > 0) {
-                form.model = availableModels.value[0]
-            }
+        const { data: mData } = await api.get('/api/models')
+        availableModels.value = mData.models || []
+        if (mData.default) {
+            form.model = mData.default
+        } else if (availableModels.value.length > 0) {
+            form.model = availableModels.value[0]
         }
     } catch (e) {
         console.error("Failed to load models", e)
@@ -101,12 +99,9 @@ onMounted(async () => {
         is_edit.value = true
         form.old_timestamp = route.params.timestamp
         try {
-            const res = await fetch(`/api/diary/${route.params.timestamp}`)
-            if (res.ok) {
-                const data = await res.json()
-                form.content = data.content
-                if (data.date_value) form.date = data.date_value
-            }
+            const { data } = await api.get(`/api/diary/${route.params.timestamp}`)
+            form.content = data.content
+            if (data.date_value) form.date = data.date_value
         } catch (e) {
             error.value = 'Failed to load entry for editing'
         }
@@ -121,12 +116,7 @@ const submitForm = async () => {
     loading.value = true
     error.value = ''
     try {
-        const res = await fetch('/api/diary', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(form)
-        })
-        const data = await res.json()
+        const { data } = await api.post('/api/diary', form)
         if (data.success) {
             if (data.feedback && data.feedback.timestamp) {
                 router.push(`/entry/${data.feedback.timestamp}`)
@@ -134,14 +124,16 @@ const submitForm = async () => {
                 router.push('/history')
             }
         } else {
-            if (res.status === 401) {
-                router.push('/login')
-                return
-            }
             error.value = data.error || 'Failed to polish entry'
         }
     } catch (e) {
-        error.value = 'Network error'
+        if (e.response && e.response.status === 401) {
+            router.push('/login')
+        } else if (e.response) {
+            error.value = e.response.data.error || 'Failed to polish entry'
+        } else {
+            error.value = 'Network error'
+        }
     } finally {
         loading.value = false
     }

@@ -81,6 +81,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import api from '../api'
 
 const route = useRoute()
 const router = useRouter()
@@ -89,31 +90,28 @@ const entry = ref('')
 
 onMounted(async () => {
     try {
-        const res = await fetch(`/api/diary/${route.params.timestamp}`)
-        if (res.ok) {
-            const data = await res.json()
-            feedback.value = data.feedback
-            entry.value = data.content
-            
-            window.correctionsData = data.feedback.corrections
-            setTimeout(() => {
-                if (window.initInteractiveCorrections) window.initInteractiveCorrections()
-                if (window.initOrganicFlow) window.initOrganicFlow()
-            }, 100)
-        } else if (res.status === 401) {
+        const { data } = await api.get(`/api/diary/${route.params.timestamp}`)
+        feedback.value = data.feedback
+        entry.value = data.content
+        
+        window.correctionsData = data.feedback.corrections
+        setTimeout(() => {
+            if (window.initInteractiveCorrections) window.initInteractiveCorrections()
+            if (window.initOrganicFlow) window.initOrganicFlow()
+        }, 100)
+    } catch (e) {
+        if (e.response && e.response.status === 401) {
             router.push('/login')
         } else {
             router.push('/history')
         }
-    } catch (e) {
-        console.error(e)
     }
 })
 
 const deleteEntry = async () => {
     if (confirm("Are you sure you want to delete this entry?")) {
         try {
-            await fetch(`/api/diary/${route.params.timestamp}`, { method: 'DELETE' })
+            await api.delete(`/api/diary/${route.params.timestamp}`)
             router.push('/history')
         } catch (e) {
             console.error(e)

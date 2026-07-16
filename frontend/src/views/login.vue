@@ -18,6 +18,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import api from '../api'
 
 const router = useRouter()
 const password = ref('')
@@ -31,19 +32,18 @@ onMounted(() => {
 
 const handleLogin = async () => {
     try {
-        const res = await fetch('/api/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password: password.value })
-        })
-        const data = await res.json()
+        const { data } = await api.post('/api/login', { password: password.value })
         if (data.success) {
             router.push('/')
         } else {
             error.value = data.error || 'Login failed'
         }
     } catch (e) {
-        error.value = 'Network error'
+        if (e.response) {
+            error.value = e.response.data.error || 'Login failed'
+        } else {
+            error.value = 'Network error'
+        }
     }
 }
 </script>

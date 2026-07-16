@@ -3,6 +3,7 @@ from flask_cors import CORS
 import markdown
 import json
 import functools
+import os
 from config import Config
 from services.ai_service import ai_service
 from services.db_service import db_service
@@ -11,8 +12,14 @@ Config.validate()
 
 app = Flask(__name__)
 app.secret_key = Config.SECRET_KEY
+
+# Cross-origin session cookie settings (required for Cloudflare Pages + VM backend)
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+app.config['SESSION_COOKIE_SECURE'] = True
+
 # Enable CORS for the frontend application
-CORS(app, supports_credentials=True)
+cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:5173').split(',')
+CORS(app, supports_credentials=True, origins=cors_origins)
 
 def login_required(f):
     @functools.wraps(f)
