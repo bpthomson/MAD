@@ -18,7 +18,10 @@
       </div>
       
       <div class="timeline">
-          <div v-if="records.length === 0" class="py-5 text-muted text-center card bg-transparent border-0">
+          <div v-if="loading" class="py-5 text-muted text-center card bg-transparent border-0">
+              <p class="fs-5">Loading...</p>
+          </div>
+          <div v-else-if="records.length === 0" class="py-5 text-muted text-center card bg-transparent border-0">
               <p class="fs-5">No entries found.</p>
               <button v-if="searchQuery" @click="clearSearch" class="btn btn-link text-muted">Clear Search</button>
           </div>
@@ -61,8 +64,10 @@ import api from '../api'
 
 const records = ref([])
 const searchQuery = ref('')
+const loading = ref(true)
 
 const fetchHistory = async () => {
+    loading.value = true
     try {
         const { data } = await api.get('/api/history', { params: { q: searchQuery.value } })
         records.value = data.records
@@ -72,6 +77,8 @@ const fetchHistory = async () => {
         } else {
             console.error(e)
         }
+    } finally {
+        loading.value = false
     }
 }
 

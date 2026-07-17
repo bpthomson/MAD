@@ -4,6 +4,8 @@ import markdown
 import json
 import functools
 import os
+from datetime import timedelta
+import time
 from config import Config
 from services.ai_service import ai_service
 from services.db_service import db_service
@@ -16,6 +18,13 @@ app.secret_key = Config.SECRET_KEY
 # Cross-origin session cookie settings (required for Cloudflare Pages + VM backend)
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 app.config['SESSION_COOKIE_SECURE'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
+
+# --- Rate Limiting ---
+# Tracks failed login attempts per IP: { ip: { 'count': int, 'locked_until': float } }
+_login_attempts = {}
+MAX_ATTEMPTS = 5
+LOCKOUT_SECONDS = 15 * 60  # 15 minutes
 
 # Enable CORS for the frontend application
 cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:5173').split(',')
@@ -31,13 +40,33 @@ def login_required(f):
 
 @app.route('/api/login', methods=['POST'])
 def login():
+    ip = request.remote_addr
+    now = time.time()
+
+    # Check if this IP is currently locked out
+    record = _login_attempts.get(ip, {})
+    locked_until = record.get('locked_until', 0)
+    if now < locked_until:
+        remaining = int(locked_until - now)
+        return jsonify({'error': f'嘗試次數過多，請在 {remaining} 秒後再試'}), 429
+
     data = request.get_json() or {}
     password = data.get('password')
     if password == Config.DIARY_PASSWORD:
+        # Success: clear attempts and set session
+        _login_attempts.pop(ip, None)
+        session.permanent = True
         session['logged_in'] = True
         return jsonify({'success': True})
     else:
-        return jsonify({'error': '密碼錯誤'}), 401
+        # Failure: increment count
+        count = record.get('count', 0) + 1
+        if count >= MAX_ATTEMPTS:
+            _login_attempts[ip] = {'count': count, 'locked_until': now + LOCKOUT_SECONDS}
+        else:
+            _login_attempts[ip] = {'count': count, 'locked_until': 0}
+        remaining_attempts = max(0, MAX_ATTEMPTS - count)
+        return jsonify({'error': f'密碼錯誤（剩餘 {remaining_attempts} 次嘗試）'}), 401
 
 @app.route('/api/logout', methods=['POST'])
 def logout():
