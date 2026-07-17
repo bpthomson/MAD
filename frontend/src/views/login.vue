@@ -16,7 +16,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../api'
 
@@ -24,11 +24,6 @@ const router = useRouter()
 const password = ref('')
 const error = ref('')
 
-onMounted(() => {
-    setTimeout(() => {
-        if (window.initOrganicFlow) window.initOrganicFlow()
-    }, 100)
-})
 
 const handleLogin = async () => {
     try {

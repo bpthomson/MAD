@@ -47,14 +47,7 @@
           </div>
 
           <div class="col-lg-4">
-              <div id="calendar-container" class="calendar-widget shadow-sm" style="height: 100%;">
-                  <div class="calendar-header">
-                      <button onclick="window.changeMonth && window.changeMonth(-1)">&lt;</button>
-                      <span id="calendar-month-year">...</span>
-                      <button onclick="window.changeMonth && window.changeMonth(1)">&gt;</button>
-                  </div>
-                  <div id="calendar-grid" class="calendar-grid"></div>
-              </div>
+              <CalendarWidget v-model="form.date" />
           </div>
       </div>
   </div>
@@ -64,6 +57,7 @@
 import { ref, onMounted, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import api from '../api'
+import CalendarWidget from '../components/CalendarWidget.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -106,10 +100,6 @@ onMounted(async () => {
             error.value = 'Failed to load entry for editing'
         }
     }
-    setTimeout(() => {
-        if (window.initCalendar) window.initCalendar()
-        if (window.initOrganicFlow) window.initOrganicFlow()
-    }, 100)
 })
 
 const submitForm = async () => {
