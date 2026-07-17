@@ -3,7 +3,6 @@ import Index from '../views/index.vue'
 import Login from '../views/login.vue'
 import History from '../views/history.vue'
 import Result from '../views/result.vue'
-import api from '../api'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -39,6 +38,8 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   if (to.name !== 'login') {
     try {
+      // Dynamic import to avoid circular dependency (api.js imports router)
+      const { default: api } = await import('../api')
       const { data } = await api.get('/api/check_auth')
       if (!data.logged_in) {
         next({ name: 'login' })
@@ -53,4 +54,3 @@ router.beforeEach(async (to, from, next) => {
 })
 
 export default router
-

@@ -127,9 +127,7 @@ const submitForm = async () => {
             error.value = data.error || 'Failed to polish entry'
         }
     } catch (e) {
-        if (e.response && e.response.status === 401) {
-            router.push('/login')
-        } else if (e.response) {
+        if (e.response) {
             error.value = e.response.data.error || 'Failed to polish entry'
         } else {
             error.value = 'Network error'

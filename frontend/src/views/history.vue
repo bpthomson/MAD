@@ -72,11 +72,7 @@ const fetchHistory = async () => {
         const { data } = await api.get('/api/history', { params: { q: searchQuery.value } })
         records.value = data.records
     } catch (e) {
-        if (e.response && e.response.status === 401) {
-            window.location.href = '/login'
-        } else {
-            console.error(e)
-        }
+        console.error(e)
     } finally {
         loading.value = false
     }

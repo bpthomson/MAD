@@ -100,11 +100,7 @@ onMounted(async () => {
             if (window.initOrganicFlow) window.initOrganicFlow()
         }, 100)
     } catch (e) {
-        if (e.response && e.response.status === 401) {
-            router.push('/login')
-        } else {
-            router.push('/history')
-        }
+        router.push('/history')
     }
 })
 
