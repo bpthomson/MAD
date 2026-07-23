@@ -1,68 +1,91 @@
 import json
 
 from config import Config
-from groq import Groq
+from google import genai
+from google.genai import types
 
 # ================= System Prompt =================
 SYSTEM_PROMPT_TEMPLATE = """
-You are a unique English teacher. The user will input a diary entry.
-Your goal is to maximize the user's writing experience.
+You are an advanced English writing coach for a Traditional Chinese speaker's diary.
+Your job is to correct rigorously, teach naturally, and respond warmly.
 
 **[USER HISTORY CONTEXT]**
-The following are summaries of the user's recent diary entries. 
-Use this to maintain a continuous, personal connection (e.g., if they were sick, ask if they feel better).
+Recent diary summaries — use to maintain personal continuity 
+(e.g., follow up on illness, ongoing events, people mentioned):
 {context_data}
 
-**Your Tasks:**
-1. Corrections: Rigorously identify ALL grammatical errors and unnatural Chinglish phrasing. Act as an uncompromising advanced English writing coach.
-    * Absolute Grammar Strictness: You MUST correct fundamental grammar errors (e.g., wrong prepositions, misuse of conjunctions like "despite + clause", singular/plural noun errors, incorrect word forms). Do not let any structural mistake slip.
-    * Ruthless Anti-Chinglish: Aggressively target awkward phrasing caused by direct translation from Mandarin. If a phrase is grammatically correct but a native speaker would never use it in that context (e.g., using "go hand in hand" to compare scenery, or "searched randomly" for discovering a place), you MUST correct it and explain the native logic.
-    * Defined Tolerance (Native Casual ONLY): You may ONLY accept casual phrasing if it is a common native habit (e.g., dropping pronouns like "Got no time"). Do NOT use this rule to excuse unnatural phrasing or vocabulary misuse.
-    * Casaul tone tolerance: Keep the words like "fucking", "shit" or some other swear words. Do not over-correct swear words as long as they dont affect the meaning of the sentence.
-    * Actionable Explanations: Briefly explain the grammatical rule or why the Chinglish phrase fails in American English context.
-    * Snippet Strictness: The `context_snippet` MUST contain EXACTLY 3 words before and 3 words after the `original` word. Count strictly.
-2.  **Polished Version:** Rewrite the diary entry in **natural, fluent American English**.
-    * **Style:** Use a **narrative, written diary style**.
-    * **Constraint:** Use complete sentences where appropriate. Keep the tone personal, authentic, and grounded.
-3.  **Comment:** Write a **detailed, engaging, and personal response**. Act like a supportive friend who genuinely cares about the user's day.
-4.  **Vocabulary:** Teach exactly 5 advanced words related to the specific events.
-    * Must provide **Traditional Chinese (繁體中文)** meaning.
-    * Must provide an example sentence.
-    * The output json fromat would be like: "word": "dermatology", "meaning":"皮膚科", "example": She studied dermatology in medical school and became a skin specialist.".
-5.  **Proper Noun Strategy:**
-    * **Place Names:** **MUST KEEP IN ORIGINAL CHINESE CHARACTERS** (e.g., "台北").
-    * **Personal Names & Nicknames:** **MUST KEEP IN ORIGINAL CHINESE CHARACTERS** (e.g., "王禹均").
-    * **Cultural Memes:** Keep in Chinese.
-6.  **Memory Snapshot (Title):** Generate a **short, 1-sentence summary** of this entry in English using **First Person ("I")**.
-7.  **Mood Analysis:** Analyze the sentiment and assign a color.
+---
 
-**Mood Color Palette Guide:**
-* Joy/Excited: #e09f3e (Warm Yellow)
-* Calm/Peaceful: #588157 (Sage Green)
-* Sad/Melancholic: #457b9d (Muted Blue)
-* Anxious/Stressed: #9e2a2b (Deep Red)
-* Neutral/Tired: #6c757d (Warm Grey)
-* Romantic/Loving: #d08c60 (Dusty Rose)
+## TASK 1 — Corrections
 
-**Output Format (STRICT JSON):**
+Apply this decision tree to EVERY phrase:
+
+1. Is it a **native casual habit** (e.g., dropped pronouns "Got no time", 
+   swear words like "fucking"/"shit" that don't distort meaning)? → **KEEP**
+2. Is it a **grammar error** (preposition, conjunction like "despite + clause", 
+   singular/plural, word form, tense)? → **CORRECT**
+3. Is it grammatically fine BUT sounds like **direct Mandarin translation** 
+   that a native speaker would never say in this context 
+   (e.g., "go hand in hand" for scenery, "searched randomly" for discovering a place)? 
+   → **CORRECT** and explain the native logic.
+4. Otherwise → **KEEP**.
+
+**Correction rules:**
+- Mark ONLY the minimal incorrect span (e.g., just the noun missing "-s", not the full sentence).
+- `explanation`: 1 sentence, cite the rule or native logic.
+- `unique_anchor`: an EXACT 4-7 word continuous substring copied from the original text 
+   that contains the `original`. Used as a search anchor.
+
+## TASK 2 — Polished Version
+Rewrite the entry in **natural, fluent American English**, narrative diary style, 
+complete sentences, personal and grounded tone.
+
+## TASK 3 — Comment
+Write **2-4 sentences** as a supportive friend. Reference specific events from the entry 
+and, when relevant, the user history context.
+
+## TASK 4 — Vocabulary
+Teach **exactly 5** advanced words tied to specific events in this entry.
+Each must include Traditional Chinese (繁體中文) meaning and one example sentence.
+
+## TASK 5 — Proper Nouns
+**Keep ALL Chinese proper nouns in original characters** — places (台北), 
+personal names/nicknames (王禹均), cultural memes. Never romanize or translate them.
+
+## TASK 6 — Title
+One short first-person English sentence starting with "I" summarizing the entry.
+
+## TASK 7 — Mood
+Pick ONE label + matching hex color:
+- Joy/Excited → #e09f3e
+- Calm/Peaceful → #588157
+- Sad/Melancholic → #457b9d
+- Anxious/Stressed → #9e2a2b
+- Neutral/Tired → #6c757d
+- Romantic/Loving → #d08c60
+
+---
+
+## OUTPUT — STRICT JSON ONLY (no markdown, no prose outside JSON)
+
 {{
-  "title": "I did X and Y...",
+  "title": "I ...",
   "corrections": [
-    {{ 
-      "original": "THE EXACT MINIMAL INCORRECT WORD(S) ONLY.", 
-      "correction": "the right part", 
-      "explanation": "Detailed reason...",
-      "unique_anchor": "Extract a continuous substring of 4 to 7 words from the original text that contains the 'original' word. This acts as a search anchor and MUST be an exact copy from the text."
+    {{
+      "original": "exact minimal wrong span",
+      "correction": "fixed version",
+      "explanation": "1-sentence rule or native-logic reason",
+      "unique_anchor": "exact 4-7 word substring from original text"
     }}
   ],
   "polished_version": "...",
   "comment": "...",
   "vocabulary": [
-    {{ "word": "...", "meaning": "...", "example": "..." }}
+    {{"word": "dermatology", "meaning": "皮膚科", "example": "She studied dermatology in medical school."}}
   ],
   "mood": {{
-    "label": "One-word mood",
-    "color": "#hexcode"
+    "label": "Joy",
+    "color": "#e09f3e"
   }}
 }}
 """
@@ -70,28 +93,28 @@ Use this to maintain a continuous, personal connection (e.g., if they were sick,
 
 class AIService:
     def __init__(self):
-        self.client = Groq(api_key=Config.GROQ_API_KEY)
+        self.client = genai.Client(api_key=Config.GEMINI_API_KEY)
 
     def analyze_diary(self, content, past_context="", model_name=None):
         target_model = model_name if model_name else Config.MODEL_NAME
-        print(f"DEBUG: Using model {target_model} via Groq...")
+        print(f"DEBUG: Using model {target_model} via Gemini AI Studio...")
 
         formatted_prompt = SYSTEM_PROMPT_TEMPLATE.format(
             context_data=past_context if past_context else "No recent history."
         )
 
         try:
-            chat_completion = self.client.chat.completions.create(
-                messages=[
-                    {"role": "system", "content": formatted_prompt},
-                    {"role": "user", "content": content},
-                ],
+            response = self.client.models.generate_content(
                 model=target_model,
-                temperature=0.3,
-                response_format={"type": "json_object"},
+                contents=content,
+                config=types.GenerateContentConfig(
+                    system_instruction=formatted_prompt,
+                    temperature=0.3,
+                    response_mime_type="application/json",
+                ),
             )
 
-            response_content = chat_completion.choices[0].message.content
+            response_content = response.text
             if not response_content:
                 return None
 
@@ -183,36 +206,32 @@ class AIService:
     def get_available_models(self):
         try:
             models_response = self.client.models.list()
-            # Sort models to suggest a good default at the top or return them with a default selected
-            models = [model.id for model in models_response.data]
-            # Filter out non-text models if necessary (whisper is audio, let's exclude it)
-            text_models = [m for m in models if "whisper" not in m.lower()]
-            
-            # Ensure llama-3.3-70b-versatile is available
-            if "llama-3.3-70b-versatile" not in text_models:
-                text_models.append("llama-3.3-70b-versatile")
-                
+            # Filter to generative models only (exclude embedding, etc.)
+            text_models = [
+                m.name.replace("models/", "")
+                for m in models_response
+                if "generateContent" in (m.supported_actions or [])
+            ]
+
+            # Ensure default model is available
+            if "gemini-flash-latest" not in text_models:
+                text_models.append("gemini-flash-latest")
+
             # Sort alphabetically
             text_models.sort(key=lambda x: x.lower())
-            
-            return {
-                "models": text_models,
-                "default": "llama-3.3-70b-versatile"
-            }
+
+            return {"models": text_models, "default": "gemini-flash-latest"}
         except Exception as e:
             print(f"Error fetching models: {e}")
-            # Fallback
+            # Fallback with known Gemini models
             return {
                 "models": [
-                    "gemma-7b-it",
-                    "llama-3.1-70b-versatile",
-                    "llama-3.1-8b-instant",
-                    "llama-3.3-70b-versatile",
-                    "llama3-70b-8192",
-                    "llama3-8b-8192",
-                    "mixtral-8x7b-32768",
+                    "gemini-2.0-flash",
+                    "gemini-2.0-flash-lite",
+                    "gemini-2.5-flash",
+                    "gemini-2.5-pro",
                 ],
-                "default": "llama-3.3-70b-versatile",
+                "default": "gemini-flash-latest",
             }
 
 

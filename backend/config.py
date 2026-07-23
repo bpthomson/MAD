@@ -6,7 +6,7 @@ load_dotenv()
 
 
 class Config:
-    GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
     SECRET_KEY = os.getenv("SECRET_KEY", "dev_fallback_secret")
     DIARY_PASSWORD = os.getenv("DIARY_PASSWORD", "default_password")
 
@@ -15,9 +15,9 @@ class Config:
 
     GOOGLE_CREDENTIALS_JSON = os.getenv("GOOGLE_CREDENTIALS_JSON")
 
-    MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.3-70b-versatile")
+    MODEL_NAME = os.getenv("MODEL_NAME", "gemini-flash-latest")
 
     @staticmethod
     def validate():
-        if not Config.GROQ_API_KEY:
-            print("警告: 缺少 GROQ_API_KEY")
+        if not Config.GEMINI_API_KEY:
+            print("警告: 缺少 GEMINI_API_KEY")
