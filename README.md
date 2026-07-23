@@ -8,10 +8,10 @@ This document explains **how the repository works internally** and the architect
 
 The project is split into two distinct tiers: a **Vue 3 SPA** (Single Page Application) frontend and a **Flask (Python)** backend REST API. 
 
-### 1. The Brain: AI Integration (Groq API)
-The core intelligence of the app is powered by the **Groq API**. 
+### 1. The Brain: AI Integration (Gemini AI Studio)
+The core intelligence of the app is powered by the **Gemini AI Studio API** (`google-genai` SDK). 
 - In `backend/services/ai_service.py`, the system constructs a rigorous system prompt instructing the model to act as a strict English coach.
-- It dynamically queries Groq's `/models` endpoint to list available models, filtering out audio models like Whisper, and defaults to `llama-3.3-70b-versatile` for high-speed, high-quality reasoning.
+- It dynamically queries the Gemini models endpoint to list available generative models, and defaults to `gemini-flash-latest` for high-speed, high-quality reasoning.
 - The AI returns structured JSON containing grammar corrections, a polished rewrite, 5 advanced vocabulary words, a sentiment analysis (mood), and exact string-matching anchors to map corrections back to the original text.
 
 ### 2. The Storage: Database (Google Sheets API)
@@ -29,7 +29,7 @@ The backend is completely stateless and handles routing:
 The frontend is responsible for the interactive user experience:
 - **Proxying**: The `vite.config.js` proxies all `/api` requests to the local Flask server on port 5000, preventing CORS issues during development.
 - **Views**: 
-  - `index.vue`: The main writing interface. It fetches the available Groq models dynamically so the user can choose their preferred LLM.
+  - `index.vue`: The main writing interface. It fetches the available Gemini models dynamically so the user can choose their preferred LLM.
   - `result.vue`: The Insight page. It implements a split-pane layout parsing the AI's JSON payload to create interactive text highlighting—clicking a highlighted word in the original text maps to the exact correction reason in the details panel.
   - `history.vue`: Fetches the timeline of entries, decoding the serialized mood data to display color-coded sentiment tags.
 
@@ -52,7 +52,7 @@ uv pip install -r requirements.txt
 # Start the Flask API
 python app.py
 ```
-*(Ensure you have your `.env` configured with `GROQ_API_KEY`, `SECRET_KEY`, and `DIARY_PASSWORD`, along with a valid `credentials.json` for Google Sheets).*
+*(Ensure you have your `.env` configured with `GEMINI_API_KEY`, `SECRET_KEY`, and `DIARY_PASSWORD`, along with a valid `credentials.json` for Google Sheets).*
 
 ### Frontend (Node.js)
 ```bash
