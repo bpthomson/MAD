@@ -11,9 +11,9 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      // Don't redirect if we're already on the login page or calling the login API
-      const isLoginRequest = error.config.url && error.config.url.includes('/api/login')
-      if (!isLoginRequest) {
+      // Don't redirect if we're already on the login page or calling the login/check_auth API
+      const url = error.config.url || ''
+      if (!url.includes('/api/login') && !url.includes('/api/check_auth')) {
         router.push('/login')
       }
     }

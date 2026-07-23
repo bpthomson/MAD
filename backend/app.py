@@ -15,9 +15,21 @@ Config.validate()
 app = Flask(__name__)
 app.secret_key = Config.SECRET_KEY
 
-# Cross-origin session cookie settings (required for Cloudflare Pages + VM backend)
-app.config['SESSION_COOKIE_SAMESITE'] = 'None'
-app.config['SESSION_COOKIE_SECURE'] = True
+# Cross-origin session cookie settings
+# Production (Cloudflare Pages + VM backend): SameSite=None + Secure required for cross-origin cookies
+# Local dev (http://localhost): Lax + no Secure so the browser actually sends the cookie
+_cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:5173')
+_is_production = any(
+    origin.strip().startswith('https://') for origin in _cors_origins.split(',')
+    if 'localhost' not in origin and '127.0.0.1' not in origin
+)
+
+if _is_production:
+    app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+    app.config['SESSION_COOKIE_SECURE'] = True
+else:
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    app.config['SESSION_COOKIE_SECURE'] = False
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 
 # --- Rate Limiting ---

@@ -35,17 +35,27 @@ const router = createRouter({
   ]
 })
 
+// Deduplicate concurrent auth checks — if one is in-flight, reuse it
+let authCheckPromise = null
+
 router.beforeEach(async (to, from, next) => {
   if (to.name !== 'login') {
     try {
-      // Dynamic import to avoid circular dependency (api.js imports router)
-      const { default: api } = await import('../api')
-      const { data } = await api.get('/api/check_auth')
+      // Reuse in-flight auth check to avoid duplicate requests
+      if (!authCheckPromise) {
+        authCheckPromise = import('../api').then(({ default: api }) =>
+          api.get('/api/check_auth')
+        )
+      }
+      const { data } = await authCheckPromise
+      authCheckPromise = null
+
       if (!data.logged_in) {
         next({ name: 'login' })
         return
       }
     } catch (e) {
+      authCheckPromise = null
       next({ name: 'login' })
       return
     }
